@@ -20,7 +20,6 @@ public class Options {
 		this.safeMode = safeMode;
 		this.overwriteExisting = overwriteExisting;
 	}
-
 	public static final Options DEFAULT_OPTIONS = new Options();
 	public static final Options DEBUG_OPTIONS = new Options(true, true, false, false);
 }

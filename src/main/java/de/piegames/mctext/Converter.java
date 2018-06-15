@@ -3,6 +3,7 @@ package de.piegames.mctext;
 import java.io.BufferedOutputStream;
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
+import java.io.File;
 import java.io.IOException;
 import java.io.Writer;
 import java.nio.ByteBuffer;
@@ -18,6 +19,7 @@ import java.nio.file.PathMatcher;
 import java.nio.file.Paths;
 import java.nio.file.StandardCopyOption;
 import java.nio.file.attribute.BasicFileAttributes;
+import java.util.Arrays;
 import java.util.Base64;
 import java.util.HashMap;
 import java.util.LinkedList;
@@ -53,6 +55,10 @@ import com.google.gson.TypeAdapter;
 import com.google.gson.stream.JsonReader;
 import com.google.gson.stream.JsonToken;
 import com.google.gson.stream.JsonWriter;
+
+import joptsimple.OptionParser;
+import joptsimple.OptionSet;
+import joptsimple.OptionSpec;
 
 public class Converter {
 
@@ -533,13 +539,43 @@ public class Converter {
 	}
 
 	public static void main(String[] args) throws IOException {
+
 		Converter converter = new Converter(new Options(false, false, false, false));
-		if (Boolean.valueOf("true"))
-			converter.backupWorld(Paths.get("/home/piegames/.minecraft/saves/Multi 5 - Kopie 1 (copy)"),
-					Paths.get("/home/piegames/.minecraft/saves/Multi 5 - Kopie 1 (copy) NBT!!!"));
-		else
-			converter.restoreWorld(Paths.get("/home/piegames/.minecraft/saves/Multi 5 - Kopie 1 (copy) NBT!!!"),
-					Paths.get("/home/piegames/.minecraft/saves/Multi 5 - Kopie 1 (copy) JSON!!!"));
+		OptionParser parser = new OptionParser();
+		parser.acceptsAll(Arrays.asList("-p", "--pretty"), "Option: pretty");
+		parser.acceptsAll(Arrays.asList("-u", "--unused"), "Option: unused");
+		parser.acceptsAll(Arrays.asList("-n", "--dry-run"), "Option: dry-run");
+		parser.acceptsAll(Arrays.asList("-f", "--overwrite-existing"), "Option: overwrite-existing");
+
+		parser.acceptsAll(Arrays.asList("restoreFile","restoreWorld", "backupFile", "backupWorld"),"commands" ).isRequired();
+
+		Path backup = Paths.get(args[1]);
+		Path restore = Paths.get(args[2]);
+		Options opts = new Options();
+
+		OptionSet options = parser.parse(args);
+		if (options.has("restoreFile")) {
+			converter.restoreFile(backup, restore);
+		}
+		if (options.has("restoreWorld")) {
+			converter.restoreWorld(backup, restore);
+		}
+		if (options.has("backupFile")) {
+			converter.backupFile(backup, restore);
+		}
+		if (options.has("backupWorld")) {
+			converter.backupWorld(backup, restore);
+		}
+		// if (Boolean.valueOf("true"))
+		// converter.backupWorld(Paths.get("/home/piegames/.minecraft/saves/Multi 5 -
+		// Kopie 1 (copy)"),
+		// Paths.get("/home/piegames/.minecraft/saves/Multi 5 - Kopie 1 (copy)
+		// NBT!!!"));
+		// else
+		// converter.restoreWorld(Paths.get("/home/piegames/.minecraft/saves/Multi 5 -
+		// Kopie 1 (copy) NBT!!!"),
+		// Paths.get("/home/piegames/.minecraft/saves/Multi 5 - Kopie 1 (copy)
+		// JSON!!!"));
 
 		// RandomAccessFile raf = new
 		// RandomAccessFile("/home/piegames/.minecraft/saves/Redstone/region/r.1.0.mca",
