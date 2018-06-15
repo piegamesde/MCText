@@ -87,8 +87,7 @@ public class RegionFileTest {
 		if (keepUnused)
 			assertRegionFileEquals(expected, tmp1);
 
-		RegionFile file2 = (keepUnused ? converter1 : converter2).gson
-				.fromJson((keepUnused ? converter1 : converter2).gson.toJson(file), RegionFile.class);
+		RegionFile file2 = (keepUnused ? converter1 : converter2).gson.fromJson((keepUnused ? converter1 : converter2).gson.toJson(file), RegionFile.class);
 		Path tmp2 = Files.createTempFile("tmp", ".mca");
 		file2.write(tmp2);
 

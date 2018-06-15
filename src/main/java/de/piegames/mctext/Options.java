@@ -4,20 +4,20 @@ public class Options {
 
 	public final boolean prettyPrinting;
 	public final boolean keepUnusedData;
-	public final boolean safeMode;
+	public final boolean dryRun;
 	public final boolean overwriteExisting;
 
 	public Options() {
 		prettyPrinting = false;
 		keepUnusedData = false;
-		safeMode = false;
+		dryRun = false;
 		overwriteExisting = false;
 	}
 
-	public Options(boolean prettyPrinting, boolean keepUnusedData, boolean safeMode, boolean overwriteExisting) {
+	public Options(boolean prettyPrinting, boolean keepUnusedData, boolean dryRun, boolean overwriteExisting) {
 		this.prettyPrinting = prettyPrinting;
 		this.keepUnusedData = keepUnusedData;
-		this.safeMode = safeMode;
+		this.dryRun = dryRun;
 		this.overwriteExisting = overwriteExisting;
 	}
 

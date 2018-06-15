@@ -37,8 +37,7 @@ public class RegionFile {
 		locations2 = locations.asIntBuffer();
 		timestamps2 = timestamps.asIntBuffer();
 
-		Set<Integer> unused = IntStream.range(2, (int) Math.ceil(raf.size() / 4096d)).mapToObj(i -> i)
-				.collect(Collectors.toSet());
+		Set<Integer> unused = IntStream.range(2, (int) Math.ceil(raf.size() / 4096d)).mapToObj(i -> i).collect(Collectors.toSet());
 
 		for (int i = 0; i < 1024; i++) {
 			int chunkPos = locations2.get(i) >>> 8;
@@ -71,8 +70,8 @@ public class RegionFile {
 	}
 
 	public void write(Path file) throws IOException {
-		FileChannel raf = FileChannel.open(file, StandardOpenOption.READ, StandardOpenOption.WRITE,
-				StandardOpenOption.CREATE, StandardOpenOption.TRUNCATE_EXISTING);
+		FileChannel raf = FileChannel.open(file, StandardOpenOption.READ, StandardOpenOption.WRITE, StandardOpenOption.CREATE,
+				StandardOpenOption.TRUNCATE_EXISTING);
 		rewind();
 		raf.position(0);
 		raf.write(locations);

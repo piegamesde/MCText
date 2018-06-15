@@ -118,8 +118,7 @@ public class Converter {
 					out.name("compression");
 					out.value(compression);
 
-					NBTInputStream nbtIn = new NBTInputStream(
-							new ByteArrayInputStream(data.array(), 5, realChunkLength), compression);
+					NBTInputStream nbtIn = new NBTInputStream(new ByteArrayInputStream(data.array(), 5, realChunkLength), compression);
 					out.name("chunk");
 					Converter.this.write(out, nbtIn.readTag(), "chunk", false);
 					nbtIn.close();
@@ -180,8 +179,7 @@ public class Converter {
 						throw new JsonParseException("chunk must be the fifth element in object");
 
 					ByteArrayOutputStream baos = new ByteArrayOutputStream();
-					NBTOutputStream s = new NBTOutputStream(
-							new BufferedOutputStream(baos = new ByteArrayOutputStream()), compression);
+					NBTOutputStream s = new NBTOutputStream(new BufferedOutputStream(baos = new ByteArrayOutputStream()), compression);
 					s.writeTag(Converter.this.read(in, "", TagType.TAG_COMPOUND));
 					s.flush();
 					s.close();
@@ -401,7 +399,7 @@ public class Converter {
 
 	public void backupNBT(Path original, Path backup) throws IOException {
 		System.out.println("\tis NBT file and will be converted");
-		if (options.safeMode || (Files.exists(backup) && !options.overwriteExisting))
+		if (options.dryRun || (Files.exists(backup) && !options.overwriteExisting))
 			return;
 		try (NBTInputStream s = new NBTInputStream(Files.newInputStream(original));
 				Writer writer = Files.newBufferedWriter(backup)) {
@@ -417,7 +415,7 @@ public class Converter {
 
 	public void backupAnvil(Path original, Path backup) throws IOException {
 		System.out.println("\tis an anvil file and will be converted");
-		if (options.safeMode || (Files.exists(backup) && !options.overwriteExisting))
+		if (options.dryRun || (Files.exists(backup) && !options.overwriteExisting))
 			return;
 		try (Writer writer = Files.newBufferedWriter(backup)) {
 			writer.write(gson.toJson(new RegionFile(original)));
@@ -469,7 +467,7 @@ public class Converter {
 			restoreAnvil(backup, restore);
 		} else {
 			System.out.println("\tis not an NBT file and will be copied");
-			if (!options.safeMode) {
+			if (!options.dryRun) {
 				if (options.overwriteExisting)
 					Files.copy(backup, restore, StandardCopyOption.REPLACE_EXISTING);
 				else
@@ -480,7 +478,7 @@ public class Converter {
 
 	public void restoreNBT(Path backup, Path restore) throws IOException {
 		System.out.println("\tis NBT file and will be converted");
-		if (options.safeMode || (Files.exists(restore) && !options.overwriteExisting))
+		if (options.dryRun || (Files.exists(restore) && !options.overwriteExisting))
 			return;
 		try (NBTOutputStream s = new NBTOutputStream(Files.newOutputStream(restore))) {
 			s.writeTag(gson.fromJson(new String(Files.readAllBytes(backup)), CompoundTag.class));
@@ -489,7 +487,7 @@ public class Converter {
 
 	public void restoreAnvil(Path backup, Path restore) throws IOException {
 		System.out.println("\tis an anvil file and will be converted");
-		if (options.safeMode || (Files.exists(restore) && !options.overwriteExisting))
+		if (options.dryRun || (Files.exists(restore) && !options.overwriteExisting))
 			return;
 
 		gson.fromJson(new String(Files.readAllBytes(backup)), RegionFile.class).write(restore);
