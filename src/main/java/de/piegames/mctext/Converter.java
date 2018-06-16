@@ -542,12 +542,32 @@ public class Converter {
 
 		Converter converter = new Converter(new Options(false, false, false, false));
 		OptionParser parser = new OptionParser();
-		parser.acceptsAll(Arrays.asList("-p", "--pretty"), "Option: pretty");
-		parser.acceptsAll(Arrays.asList("-u", "--unused"), "Option: unused");
-		parser.acceptsAll(Arrays.asList("-n", "--dry-run"), "Option: dry-run");
-		parser.acceptsAll(Arrays.asList("-f", "--overwrite-existing"), "Option: overwrite-existing");
+		parser.acceptsAll(Arrays.asList("p", "pretty"), "Option: pretty");
+		parser.acceptsAll(Arrays.asList("u", "unused"), "Option: unused");
+		parser.acceptsAll(Arrays.asList("n", "dry-run"), "Option: dry-run");
+		parser.acceptsAll(Arrays.asList("f", "overwrite-existing"), "Option: overwrite-existing");
 
-		parser.acceptsAll(Arrays.asList("restoreFile","restoreWorld", "backupFile", "backupWorld"),"commands" ).isRequired();
+		// parser.acceptsAll(Arrays.asList("restore-file","restore-world",
+		// "backup-file", "backup-world"),"commands");
+		OptionSpec help = parser.acceptsAll(Arrays.asList("h", "help"), "Show help");
+		OptionSpec action = parser.acceptsAll(Arrays.asList("a", "action"), "command")
+				.availableUnless(help)
+				.requiredUnless(help)
+				.withRequiredArg().ofType(String.class).required();
+		parser.accepts("in", "source")
+				.availableIf(action)
+				.requiredIf(action)
+				.withRequiredArg().ofType(File.class).required();
+		parser.accepts("out", "destination")
+				.availableIf(action)
+				.requiredIf(action)
+				.withRequiredArg().ofType(File.class).required();
+
+		parser.printHelpOn(System.out);
+
+		parser.parse("-a=action", "--in=/home", "-out=/root");
+		System.exit(0);
+		// .requiredi;
 
 		Path backup = Paths.get(args[1]);
 		Path restore = Paths.get(args[2]);
