@@ -8,7 +8,7 @@ public class Options {
 	public final boolean overwriteExisting;
 
 	// Not implemented yet
-	// public final boolean verbose;
+	// public final Level level;
 	// public final boolean failFast;
 
 	public Options() {

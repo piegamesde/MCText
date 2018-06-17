@@ -55,6 +55,8 @@ import com.google.gson.stream.JsonWriter;
 
 public class Converter {
 
+	// public static Logger log = LogManager.getLogger(Converter.class);
+
 	public static final PathMatcher nbt = FileSystems.getDefault().getPathMatcher("glob:**.{dat,dat_old,dat_new,nbt}");
 	public static final PathMatcher anvil = FileSystems.getDefault().getPathMatcher("glob:**.{mca,mcr}");
 
