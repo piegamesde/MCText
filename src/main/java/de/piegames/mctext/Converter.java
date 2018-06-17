@@ -15,7 +15,6 @@ import java.nio.file.FileVisitor;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.PathMatcher;
-import java.nio.file.Paths;
 import java.nio.file.StandardCopyOption;
 import java.nio.file.attribute.BasicFileAttributes;
 import java.util.Base64;
@@ -528,39 +527,5 @@ public class Converter {
 				return FileVisitResult.CONTINUE;
 			}
 		});
-	}
-
-	public static void main(String[] args) throws IOException {
-		Converter converter = new Converter(new Options(false, false, false, false));
-		if (Boolean.valueOf("true"))
-			converter.backupWorld(Paths.get("/home/piegames/.minecraft/saves/Multi 5 - Kopie 1 (copy)"),
-					Paths.get("/home/piegames/.minecraft/saves/Multi 5 - Kopie 1 (copy) NBT!!!"));
-		else
-			converter.restoreWorld(Paths.get("/home/piegames/.minecraft/saves/Multi 5 - Kopie 1 (copy) NBT!!!"),
-					Paths.get("/home/piegames/.minecraft/saves/Multi 5 - Kopie 1 (copy) JSON!!!"));
-
-		// RandomAccessFile raf = new
-		// RandomAccessFile("/home/piegames/.minecraft/saves/Redstone/region/r.1.0.mca",
-		// "r");
-		//
-		// // byte 1-3: chunk position in 4kb sectors from file start
-		// long chunkPos = (raf.read() << 16 | raf.read() << 8 | raf.read());
-		// if (chunkPos > 0) {
-		// raf.seek(chunkPos * 4096);
-		// // Coords in world
-		// int chunkLength = (raf.read() << 24 | raf.read() << 16 | raf.read() << 8 |
-		// raf.read()) - 1;
-		// int compression = raf.read();// skip compression
-		// {// NBT section here
-		// byte[] buf = new byte[chunkLength];
-		// raf.read(buf);
-		// NBTInputStream nbtIn = new NBTInputStream(new InflaterInputStream(new
-		// ByteArrayInputStream(buf)),
-		// false);
-		// System.out.println(nbtIn.readTag());
-		// nbtIn.close();
-		// }
-		// } // byte 4: chunk length in sectors
-		// raf.skipBytes(1);// skip it
 	}
 }

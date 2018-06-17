@@ -7,6 +7,10 @@ public class Options {
 	public final boolean dryRun;
 	public final boolean overwriteExisting;
 
+	// Not implemented yet
+	// public final boolean verbose;
+	// public final boolean failFast;
+
 	public Options() {
 		prettyPrinting = false;
 		keepUnusedData = false;
