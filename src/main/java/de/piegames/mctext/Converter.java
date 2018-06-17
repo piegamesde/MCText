@@ -3,7 +3,6 @@ package de.piegames.mctext;
 import java.io.BufferedOutputStream;
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
-import java.io.File;
 import java.io.IOException;
 import java.io.Writer;
 import java.nio.ByteBuffer;
@@ -16,10 +15,8 @@ import java.nio.file.FileVisitor;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.PathMatcher;
-import java.nio.file.Paths;
 import java.nio.file.StandardCopyOption;
 import java.nio.file.attribute.BasicFileAttributes;
-import java.util.Arrays;
 import java.util.Base64;
 import java.util.HashMap;
 import java.util.LinkedList;
@@ -55,10 +52,6 @@ import com.google.gson.TypeAdapter;
 import com.google.gson.stream.JsonReader;
 import com.google.gson.stream.JsonToken;
 import com.google.gson.stream.JsonWriter;
-
-import joptsimple.OptionParser;
-import joptsimple.OptionSet;
-import joptsimple.OptionSpec;
 
 public class Converter {
 
@@ -536,89 +529,5 @@ public class Converter {
 				return FileVisitResult.CONTINUE;
 			}
 		});
-	}
-
-	public static void main(String[] args) throws IOException {
-
-		Converter converter = new Converter(new Options(false, false, false, false));
-		OptionParser parser = new OptionParser();
-		parser.acceptsAll(Arrays.asList("p", "pretty"), "Option: pretty");
-		parser.acceptsAll(Arrays.asList("u", "unused"), "Option: unused");
-		parser.acceptsAll(Arrays.asList("n", "dry-run"), "Option: dry-run");
-		parser.acceptsAll(Arrays.asList("f", "overwrite-existing"), "Option: overwrite-existing");
-
-		// parser.acceptsAll(Arrays.asList("restore-file","restore-world",
-		// "backup-file", "backup-world"),"commands");
-		OptionSpec help = parser.acceptsAll(Arrays.asList("h", "help"), "Show help");
-		OptionSpec action = parser.acceptsAll(Arrays.asList("a", "action"), "command")
-				.availableUnless(help)
-				.requiredUnless(help)
-				.withRequiredArg().ofType(String.class).required();
-		parser.accepts("in", "source")
-				.availableIf(action)
-				.requiredIf(action)
-				.withRequiredArg().ofType(File.class).required();
-		parser.accepts("out", "destination")
-				.availableIf(action)
-				.requiredIf(action)
-				.withRequiredArg().ofType(File.class).required();
-
-		parser.printHelpOn(System.out);
-
-		parser.parse("-a=action", "--in=/home", "-out=/root");
-		System.exit(0);
-		// .requiredi;
-
-		Path backup = Paths.get(args[1]);
-		Path restore = Paths.get(args[2]);
-		Options opts = new Options();
-
-		OptionSet options = parser.parse(args);
-		if (options.has("restoreFile")) {
-			converter.restoreFile(backup, restore);
-		}
-		if (options.has("restoreWorld")) {
-			converter.restoreWorld(backup, restore);
-		}
-		if (options.has("backupFile")) {
-			converter.backupFile(backup, restore);
-		}
-		if (options.has("backupWorld")) {
-			converter.backupWorld(backup, restore);
-		}
-		// if (Boolean.valueOf("true"))
-		// converter.backupWorld(Paths.get("/home/piegames/.minecraft/saves/Multi 5 -
-		// Kopie 1 (copy)"),
-		// Paths.get("/home/piegames/.minecraft/saves/Multi 5 - Kopie 1 (copy)
-		// NBT!!!"));
-		// else
-		// converter.restoreWorld(Paths.get("/home/piegames/.minecraft/saves/Multi 5 -
-		// Kopie 1 (copy) NBT!!!"),
-		// Paths.get("/home/piegames/.minecraft/saves/Multi 5 - Kopie 1 (copy)
-		// JSON!!!"));
-
-		// RandomAccessFile raf = new
-		// RandomAccessFile("/home/piegames/.minecraft/saves/Redstone/region/r.1.0.mca",
-		// "r");
-		//
-		// // byte 1-3: chunk position in 4kb sectors from file start
-		// long chunkPos = (raf.read() << 16 | raf.read() << 8 | raf.read());
-		// if (chunkPos > 0) {
-		// raf.seek(chunkPos * 4096);
-		// // Coords in world
-		// int chunkLength = (raf.read() << 24 | raf.read() << 16 | raf.read() << 8 |
-		// raf.read()) - 1;
-		// int compression = raf.read();// skip compression
-		// {// NBT section here
-		// byte[] buf = new byte[chunkLength];
-		// raf.read(buf);
-		// NBTInputStream nbtIn = new NBTInputStream(new InflaterInputStream(new
-		// ByteArrayInputStream(buf)),
-		// false);
-		// System.out.println(nbtIn.readTag());
-		// nbtIn.close();
-		// }
-		// } // byte 4: chunk length in sectors
-		// raf.skipBytes(1);// skip it
 	}
 }
