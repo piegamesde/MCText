@@ -23,8 +23,8 @@ public class RegionFileTest {
 	public RegionFileTest() {
 	}
 
-	Converter converter1 = new Converter(new Options(false, true, false, false));
-	Converter converter2 = new Converter(new Options(false, false, false, false));
+	Converter converter1 = new Converter(new Options(false, true, false, false, true, false));
+	Converter converter2 = new Converter(new Options(false, false, false, false, true, false));
 
 	@Test
 	public void testNBT1() throws Exception {

@@ -67,7 +67,7 @@ public class Standalone implements Runnable {
 
 		@Override
 		public Converter call() throws IOException {
-			Converter converter = new Converter(new Options(prettyPrinting, keepUnusedData, safeMode, overwriteExisting));
+			Converter converter = new Converter(new Options(prettyPrinting, keepUnusedData, safeMode, overwriteExisting, false, false));
 			converter.backupFile(source, destination);
 			return converter;
 		}
@@ -78,7 +78,7 @@ public class Standalone implements Runnable {
 
 		@Override
 		public Converter call() throws IOException {
-			Converter converter = new Converter(new Options(prettyPrinting, keepUnusedData, safeMode, overwriteExisting));
+			Converter converter = new Converter(new Options(prettyPrinting, keepUnusedData, safeMode, overwriteExisting, false, false));
 			converter.backupWorld(source, destination);
 			return converter;
 		}
@@ -89,7 +89,7 @@ public class Standalone implements Runnable {
 
 		@Override
 		public Converter call() throws IOException {
-			Converter converter = new Converter(new Options(false, keepUnusedData, safeMode, overwriteExisting));
+			Converter converter = new Converter(new Options(false, keepUnusedData, safeMode, overwriteExisting, false, false));
 			converter.restoreFile(source, destination);
 			return converter;
 		}
@@ -100,7 +100,7 @@ public class Standalone implements Runnable {
 
 		@Override
 		public Converter call() throws IOException {
-			Converter converter = new Converter(new Options(false, keepUnusedData, safeMode, overwriteExisting));
+			Converter converter = new Converter(new Options(false, keepUnusedData, safeMode, overwriteExisting, false, false));
 			converter.restoreWorld(source, destination);
 			return converter;
 		}

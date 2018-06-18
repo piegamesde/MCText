@@ -9,6 +9,7 @@ import java.nio.ByteBuffer;
 import java.nio.IntBuffer;
 import java.nio.LongBuffer;
 import java.nio.ShortBuffer;
+import java.nio.file.FileAlreadyExistsException;
 import java.nio.file.FileSystems;
 import java.nio.file.FileVisitResult;
 import java.nio.file.FileVisitor;
@@ -24,7 +25,12 @@ import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
 import java.util.Objects;
+import java.util.Queue;
 import java.util.zip.ZipException;
+
+import org.apache.commons.io.FileUtils;
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
 
 import com.flowpowered.nbt.ByteArrayTag;
 import com.flowpowered.nbt.ByteTag;
@@ -55,7 +61,7 @@ import com.google.gson.stream.JsonWriter;
 
 public class Converter {
 
-	// public static Logger log = LogManager.getLogger(Converter.class);
+	public static Logger log = LogManager.getLogger(Converter.class);
 
 	public static final PathMatcher nbt = FileSystems.getDefault().getPathMatcher("glob:**.{dat,dat_old,dat_new,nbt}");
 	public static final PathMatcher anvil = FileSystems.getDefault().getPathMatcher("glob:**.{mca,mcr}");
@@ -383,145 +389,147 @@ public class Converter {
 		return String.format("%02x", type.getId()) + key;
 	}
 
-	public void backupFile(Path original, Path backup) throws IOException {
-		System.out.println(original + " -> " + backup);
-		if (nbt.matches(original))
-			backupNBT(original, backup);
-		else if (anvil.matches(original)) {
-			backupAnvil(original, backup);
+	public void backupFile(Path source, Path destination) throws IOException {
+		if (nbt.matches(source))
+			backupNBT(source, destination);
+		else if (anvil.matches(source)) {
+			backupAnvil(source, destination);
 		} else {
-			System.out.println("\tis not an NBT file and will be copied");
-			if (options.overwriteExisting)
-				Files.copy(original, backup, StandardCopyOption.REPLACE_EXISTING);
-			else
-				Files.copy(original, backup);
+			log.debug(source + " does not seem to be an nbt file and will be copied");
+			if (!options.dryRun) {
+				if (options.overwriteExisting)
+					Files.copy(source, destination, StandardCopyOption.REPLACE_EXISTING);
+				else
+					Files.copy(source, destination);
+			}
 		}
 	}
 
-	public void backupNBT(Path original, Path backup) throws IOException {
-		System.out.println("\tis NBT file and will be converted");
-		if (options.dryRun || (Files.exists(backup) && !options.overwriteExisting))
+	public void backupNBT(Path source, Path destination) throws IOException {
+		log.debug("Backing up " + source + " as nbt file");
+		if (Files.exists(destination) && !options.overwriteExisting)
+			throw new FileAlreadyExistsException(destination.toString(), null, "Run with --overwrite-existing or --delete");
+		if (options.dryRun)
 			return;
-		try (NBTInputStream s = new NBTInputStream(Files.newInputStream(original));
-				Writer writer = Files.newBufferedWriter(backup)) {
+		try (NBTInputStream s = new NBTInputStream(Files.newInputStream(source));
+				Writer writer = Files.newBufferedWriter(destination)) {
 			writer.write(gson.toJson(s.readTag()));
 		} catch (ZipException e) {
-			// File might be uncompressed
-			try (NBTInputStream s = new NBTInputStream(Files.newInputStream(original), NBTInputStream.NO_COMPRESSION);
-					Writer writer = Files.newBufferedWriter(backup)) {
+			log.warn("Could not unzip file, trying uncompressed nbt");
+			try (NBTInputStream s = new NBTInputStream(Files.newInputStream(source), NBTInputStream.NO_COMPRESSION);
+					Writer writer = Files.newBufferedWriter(destination)) {
 				writer.write(gson.toJson(s.readTag()));
 			}
 		}
 	}
 
-	public void backupAnvil(Path original, Path backup) throws IOException {
-		System.out.println("\tis an anvil file and will be converted");
-		if (options.dryRun || (Files.exists(backup) && !options.overwriteExisting))
+	public void backupAnvil(Path source, Path destination) throws IOException {
+		log.debug("Backing up " + source + " as anvil file");
+		if (Files.exists(destination) && !options.overwriteExisting)
+			throw new FileAlreadyExistsException(destination.toString(), null, "Run with --overwrite-existing or --delete");
+		if (options.dryRun)
 			return;
-		try (Writer writer = Files.newBufferedWriter(backup)) {
-			writer.write(gson.toJson(new RegionFile(original)));
+		try (Writer writer = Files.newBufferedWriter(destination)) {
+			writer.write(gson.toJson(new RegionFile(source)));
 		}
 	}
 
-	public void backupWorld(Path original, Path backup) throws IOException {
-		// Throw an exception if destination already exists
-
-		// if (!Files.exists(destination))
-		System.out.println("Creating " + backup);
-		Files.createDirectories(backup);
-		// if (!Files.isDirectory(destination))
-		// throw new FileAlreadyExistsException(destination.toString());
-
-		Files.walkFileTree(original, new FileVisitor<Path>() {
-
-			@Override
-			public FileVisitResult preVisitDirectory(Path dir, BasicFileAttributes attrs) throws IOException {
-				dir = backup.resolve(original.relativize(dir));
-				System.out.println("Creating " + dir);
-				Files.createDirectories(dir);
-				return FileVisitResult.CONTINUE;
+	public void backupWorld(Path source, Path destination) throws IOException {
+		for (Path file : walkTree(source, destination))
+			try {
+				backupFile(file, destination.resolve(source.relativize(file)));
+			} catch (IOException | RuntimeException e) {
+				if (options.failFast)
+					throw e;
+				else
+					log.error("Could not back up file " + source, e);
 			}
-
-			@Override
-			public FileVisitResult visitFile(Path file, BasicFileAttributes attrs) throws IOException {
-				backupFile(file, backup.resolve(original.relativize(file)));
-				return FileVisitResult.CONTINUE;
-			}
-
-			@Override
-			public FileVisitResult visitFileFailed(Path file, IOException exc) throws IOException {
-				return FileVisitResult.TERMINATE;
-			}
-
-			@Override
-			public FileVisitResult postVisitDirectory(Path dir, IOException exc) throws IOException {
-				return FileVisitResult.CONTINUE;
-			}
-		});
 	}
 
-	public void restoreFile(Path backup, Path restore) throws IOException {
-		System.out.println(restore + " <- " + backup);
-		if (nbt.matches(backup))
-			restoreNBT(backup, restore);
-		else if (anvil.matches(backup)) {
-			restoreAnvil(backup, restore);
+	public void restoreFile(Path source, Path destination) throws IOException {
+		if (nbt.matches(source))
+			restoreNBT(source, destination);
+		else if (anvil.matches(source)) {
+			restoreAnvil(source, destination);
 		} else {
-			System.out.println("\tis not an NBT file and will be copied");
+			log.debug(source + " does not seem to be an nbt file and will be copied");
 			if (!options.dryRun) {
 				if (options.overwriteExisting)
-					Files.copy(backup, restore, StandardCopyOption.REPLACE_EXISTING);
+					Files.copy(source, destination, StandardCopyOption.REPLACE_EXISTING);
 				else
-					Files.copy(backup, restore);
+					Files.copy(source, destination);
 			}
 		}
 	}
 
-	public void restoreNBT(Path backup, Path restore) throws IOException {
-		System.out.println("\tis NBT file and will be converted");
-		if (options.dryRun || (Files.exists(restore) && !options.overwriteExisting))
+	public void restoreNBT(Path source, Path destination) throws IOException {
+		log.debug("Restoring " + source + " as nbt file");
+		if (Files.exists(destination) && !options.overwriteExisting)
+			throw new FileAlreadyExistsException(destination.toString(), null, "Run with --overwrite-existing or --delete");
+		if (options.dryRun)
 			return;
-		try (NBTOutputStream s = new NBTOutputStream(Files.newOutputStream(restore))) {
-			s.writeTag(gson.fromJson(new String(Files.readAllBytes(backup)), CompoundTag.class));
+		try (NBTOutputStream s = new NBTOutputStream(Files.newOutputStream(destination))) {
+			s.writeTag(gson.fromJson(new String(Files.readAllBytes(source)), CompoundTag.class));
 		}
 	}
 
-	public void restoreAnvil(Path backup, Path restore) throws IOException {
-		System.out.println("\tis an anvil file and will be converted");
-		if (options.dryRun || (Files.exists(restore) && !options.overwriteExisting))
+	public void restoreAnvil(Path source, Path destination) throws IOException {
+		log.debug("Backing up " + source + " as anvil file");
+		if (Files.exists(destination) && !options.overwriteExisting)
+			throw new FileAlreadyExistsException(destination.toString(), null, "Run with --overwrite-existing or --delete");
+		if (options.dryRun)
 			return;
-
-		gson.fromJson(new String(Files.readAllBytes(backup)), RegionFile.class).write(restore);
+		gson.fromJson(new String(Files.readAllBytes(source)), RegionFile.class).write(destination);
 	}
 
-	public void restoreWorld(Path backup, Path restore) throws IOException {
-		// Throw an exception if destination already exists
+	public void restoreWorld(Path source, Path destination) throws IOException {
+		for (Path file : walkTree(source, destination))
+			try {
+				restoreFile(file, destination.resolve(source.relativize(file)));
+			} catch (IOException | RuntimeException e) {
+				if (options.failFast)
+					throw e;
+				else
+					log.error("Could not restore file " + source, e);
+			}
+	}
 
-		// if (!Files.exists(destination))
-		System.out.println("Creating " + restore);
-		Files.createDirectories(restore);
-		// if (!Files.isDirectory(destination))
-		// throw new FileAlreadyExistsException(destination.toString());
+	Queue<Path> walkTree(Path source, Path destination) throws IOException {
+		if (options.delete)
+			FileUtils.deleteDirectory(destination.toFile());
 
-		Files.walkFileTree(backup, new FileVisitor<Path>() {
+		Queue<Path> files = new LinkedList<>();
+		Files.walkFileTree(source, new FileVisitor<Path>() {
 
 			@Override
 			public FileVisitResult preVisitDirectory(Path dir, BasicFileAttributes attrs) throws IOException {
-				dir = restore.resolve(backup.relativize(dir));
-				System.out.println("Creating " + dir);
+				dir = destination.resolve(source.relativize(dir));
+				if (!Files.exists(dir))
+					log.debug("Creating folder " + dir);
 				Files.createDirectories(dir);
 				return FileVisitResult.CONTINUE;
 			}
 
 			@Override
 			public FileVisitResult visitFile(Path file, BasicFileAttributes attrs) throws IOException {
-				restoreFile(file, restore.resolve(backup.relativize(file)));
+				Path path = destination.resolve(source.relativize(file));
+				if (Files.exists(path) && !options.overwriteExisting) {
+					IOException e = new FileAlreadyExistsException(path.toString(), null, "Run with --overwrite-existing or --delete");
+					if (options.failFast) {
+						throw e;
+					} else {
+						log.error("Could not back up", e);
+					}
+				} else {
+					files.add(file);
+				}
 				return FileVisitResult.CONTINUE;
 			}
 
 			@Override
 			public FileVisitResult visitFileFailed(Path file, IOException exc) throws IOException {
-				return FileVisitResult.TERMINATE;
+				log.error("Visiting file " + file + " failed", exc);
+				return options.failFast ? FileVisitResult.TERMINATE : FileVisitResult.CONTINUE;
 			}
 
 			@Override
@@ -529,5 +537,6 @@ public class Converter {
 				return FileVisitResult.CONTINUE;
 			}
 		});
+		return files;
 	}
 }

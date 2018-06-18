@@ -16,7 +16,7 @@ import java.util.stream.IntStream;
 
 public class RegionFile {
 
-	private Path file;
+	protected Path file;
 	ByteBuffer locations, timestamps;
 	IntBuffer locations2, timestamps2;
 	ByteBuffer[] chunks = new ByteBuffer[1024];
@@ -29,12 +29,13 @@ public class RegionFile {
 		FileChannel raf = FileChannel.open(file, StandardOpenOption.READ);
 
 		locations = ByteBuffer.allocate(4096);
-		timestamps = ByteBuffer.allocate(4096);
 		raf.read(locations);
-		raf.read(timestamps);
 		locations.flip();
-		timestamps.flip();
 		locations2 = locations.asIntBuffer();
+
+		timestamps = ByteBuffer.allocate(4096);
+		raf.read(timestamps);
+		timestamps.flip();
 		timestamps2 = timestamps.asIntBuffer();
 
 		Set<Integer> unused = IntStream.range(2, (int) Math.ceil(raf.size() / 4096d)).mapToObj(i -> i).collect(Collectors.toSet());
