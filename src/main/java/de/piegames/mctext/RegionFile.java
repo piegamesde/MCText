@@ -1,5 +1,8 @@
 package de.piegames.mctext;
 
+import java.io.BufferedOutputStream;
+import java.io.ByteArrayInputStream;
+import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.nio.IntBuffer;
@@ -13,6 +16,15 @@ import java.util.Objects;
 import java.util.Set;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
+
+import com.flowpowered.nbt.ByteArrayTag;
+import com.flowpowered.nbt.ByteTag;
+import com.flowpowered.nbt.CompoundMap;
+import com.flowpowered.nbt.CompoundTag;
+import com.flowpowered.nbt.IntTag;
+import com.flowpowered.nbt.Tag;
+import com.flowpowered.nbt.stream.NBTInputStream;
+import com.flowpowered.nbt.stream.NBTOutputStream;
 
 public class RegionFile {
 
@@ -70,6 +82,105 @@ public class RegionFile {
 		this.unused = unused;
 	}
 
+	public RegionFile(CompoundTag in, Options options) throws IOException {
+		// ByteBuffer locations, timestamps;
+		// IntBuffer locations2, timestamps2;
+		// ByteBuffer[]
+		chunks = new ByteBuffer[1024];
+
+		locations = ByteBuffer.allocate(4096);
+		timestamps = ByteBuffer.allocate(4096);
+		locations2 = locations.asIntBuffer();
+		timestamps2 = timestamps.asIntBuffer();
+
+		// Map<Integer, ByteBuffer>
+		unused = new HashMap<>();
+
+		CompoundMap map = in.getValue();
+
+		for (Entry<String, Tag<?>> entry : map.entrySet()) {
+			String name = entry.getKey();
+			int chunkPos = Integer.parseInt(name);
+			if (entry.getValue() instanceof CompoundTag) { // Actual chunk data
+				CompoundTag chunk = (CompoundTag) entry.getValue();
+				CompoundMap chunkMap = chunk.getValue();
+
+				int i = (int) chunkMap.get("index").getValue();
+				int timestamp = (int) chunkMap.get("timestamp").getValue();
+				byte compression = (byte) chunkMap.get("compression").getValue();
+
+				ByteArrayOutputStream baos = new ByteArrayOutputStream();
+				NBTOutputStream s = new NBTOutputStream(new BufferedOutputStream(baos = new ByteArrayOutputStream()), compression);
+				s.writeTag(new CompoundTag("", ((CompoundTag) chunkMap.get("chunk")).getValue()));
+				s.flush();
+				s.close();
+
+				byte[] chunkData = baos.toByteArray();
+				int chunkLength = (int) Math.ceil((chunkData.length + 6) / 4096d);
+				chunks[i] = ByteBuffer.allocate(chunkLength << 12);
+				chunks[i].putInt(chunkData.length + 1);
+				chunks[i].put(compression);
+				chunks[i].put(chunkData);
+
+				if (options.keepUnusedData && chunkMap.containsKey("unused"))
+					chunks[i].put((byte[]) chunkMap.get("unused").getValue());
+
+				chunks[i].flip();
+
+				locations2.put(i, chunkPos << 8 | (chunkLength & 0xFF));
+				timestamps2.put(i, timestamp);
+
+			} else if (options.keepUnusedData) { // Unused data
+				ByteBuffer value = ByteBuffer.wrap((byte[]) entry.getValue().getValue());
+				unused.put(chunkPos, value);
+			}
+		}
+	}
+
+	public CompoundTag writeNBT(Options options) throws IOException {
+		CompoundMap map = new CompoundMap();
+		CompoundTag ret = new CompoundTag("", map);
+
+		for (int i = 0; i < 1024; i++) {
+			int chunkPos = locations2.get(i) >>> 8;
+			int chunkLength = locations2.get(i) & 0xFF;
+			int timestamp = timestamps2.get(i);
+
+			if (chunks[i] != null) {
+				CompoundMap chunkMap = new CompoundMap();
+				CompoundTag chunk = new CompoundTag(Integer.toString(chunkPos), chunkMap);
+				map.put(Integer.toString(chunkPos), chunk);
+
+				chunkMap.put("index", new IntTag("index", i));
+				chunkMap.put("timestamp", new IntTag("timestamp", timestamp));
+
+				ByteBuffer data = chunks[i];
+				int realChunkLength = data.getInt() - 1;
+				byte compression = data.get();
+				chunkMap.put("compression", new ByteTag("compression", compression));
+
+				NBTInputStream nbtIn = new NBTInputStream(new ByteArrayInputStream(data.array(), 5, realChunkLength), compression);
+				chunkMap.put("chunk", new CompoundTag("chunk", ((CompoundTag) nbtIn.readTag()).getValue()));
+				// chunkMap.put("chunk", nbtIn.readTag());
+
+				nbtIn.close();
+
+				if (options.keepUnusedData) {
+					byte[] unusedData = new byte[(chunkLength << 12) - realChunkLength - 5];
+					System.arraycopy(data.array(), realChunkLength + 5, unusedData, 0, unusedData.length);
+					chunkMap.put("unused", new ByteArrayTag("unused", unusedData));
+				}
+			}
+		}
+
+		if (unused != null && options.keepUnusedData)
+			for (Entry<Integer, ByteBuffer> e : unused.entrySet()) {
+				map.put(e.getKey().toString(), new ByteArrayTag(e.getKey().toString(), e.getValue().array()));
+			}
+
+		return ret;
+	}
+
 	public void write(Path file) throws IOException {
 		FileChannel raf = FileChannel.open(file, StandardOpenOption.READ, StandardOpenOption.WRITE, StandardOpenOption.CREATE,
 				StandardOpenOption.TRUNCATE_EXISTING);
@@ -114,7 +225,7 @@ public class RegionFile {
 	 * with zeroes. This is completely useless except for testing.
 	 */
 	public void clearUnusedData() {
-		// MaxPos is used to remove trailing unused data at the end of the file. We
+		// maxPos is used to remove trailing unused data at the end of the file. We
 		// don't need to write it
 		int maxPos = 2;
 		for (int i = 0; i < 1024; i++)

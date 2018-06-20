@@ -1,5 +1,6 @@
 package de.piegames.mctext;
 
+import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertLinesMatch;
 
 import java.io.File;
@@ -23,8 +24,8 @@ public class RegionFileTest {
 	public RegionFileTest() {
 	}
 
-	Converter converter1 = new Converter(new Options(false, true, false, false, true, false));
-	Converter converter2 = new Converter(new Options(false, false, false, false, true, false));
+	Converter converter1 = new Converter(new Options(false, true, false, false, true, false, false));
+	Converter converter2 = new Converter(new Options(false, false, false, false, true, false, false));
 
 	@Test
 	public void testNBT1() throws Exception {
@@ -79,6 +80,7 @@ public class RegionFileTest {
 	}
 
 	private void testRegionSerialization(Path expected, boolean keepUnused) throws Exception {
+		Converter converter = (keepUnused ? converter1 : converter2);
 		RegionFile file = new RegionFile(expected);
 		if (!keepUnused)
 			file.clearUnusedData();
@@ -87,11 +89,30 @@ public class RegionFileTest {
 		if (keepUnused)
 			assertRegionFileEquals(expected, tmp1);
 
-		RegionFile file2 = (keepUnused ? converter1 : converter2).gson.fromJson((keepUnused ? converter1 : converter2).gson.toJson(file), RegionFile.class);
 		Path tmp2 = Files.createTempFile("tmp", ".mca");
-		file2.write(tmp2);
+		{ // Check Anvil <--> Json
+			RegionFile file2 = converter.gson.fromJson(converter.gson.toJson(file), RegionFile.class);
+			file2.write(tmp2);
 
-		assertRegionFileEquals(tmp1, tmp2);
+			assertRegionFileEquals(tmp1, tmp2);
+		}
+		file.rewind();
+		{ // Check Anvil <--> NBT
+			RegionFile file2 = new RegionFile(file.writeNBT(converter.options), converter.options);
+			file2.write(tmp2);
+
+			assertRegionFileEquals(tmp1, tmp2);
+		}
+		file.rewind();
+		{ // Check Anvil <--> NBT <--> JSON
+			CompoundTag tag1 = file.writeNBT(converter.options);
+			CompoundTag tag2 = converter.gson.fromJson(converter.gson.toJson(tag1), CompoundTag.class);
+			assertEquals(tag1, tag2);
+			RegionFile file2 = new RegionFile(tag2, converter.options);
+			file2.write(tmp2);
+
+			assertRegionFileEquals(tmp1, tmp2);
+		}
 	}
 
 	public static void assertRegionFileEquals(Path expected, Path actual) throws Exception {

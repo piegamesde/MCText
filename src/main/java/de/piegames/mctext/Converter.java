@@ -71,7 +71,7 @@ public class Converter {
 	public final Gson gson;
 
 	public Converter() {
-		this(Options.DEFAULT_OPTIONS);
+		this(new Options());
 	}
 
 	public Converter(Options options) {
@@ -442,7 +442,7 @@ public class Converter {
 				if (options.failFast)
 					throw e;
 				else
-					log.error("Could not back up file " + source, e);
+					log.error("Could not back up file " + file, e);
 			}
 	}
 
@@ -490,7 +490,7 @@ public class Converter {
 				if (options.failFast)
 					throw e;
 				else
-					log.error("Could not restore file " + source, e);
+					log.error("Could not restore file " + file, e);
 			}
 	}
 
@@ -511,17 +511,19 @@ public class Converter {
 			}
 
 			@Override
-			public FileVisitResult visitFile(Path file, BasicFileAttributes attrs) throws IOException {
-				Path path = destination.resolve(source.relativize(file));
-				if (Files.exists(path) && !options.overwriteExisting) {
-					IOException e = new FileAlreadyExistsException(path.toString(), null, "Run with --overwrite-existing or --delete");
+			public FileVisitResult visitFile(Path localSource, BasicFileAttributes attrs) throws IOException {
+				Path localDestination = destination.resolve(source.relativize(localSource));
+				if (Files.exists(localDestination) && !options.overwriteExisting) {
+					IOException e = new FileAlreadyExistsException(localDestination.toString(), null, "Run with --overwrite-existing or --delete");
 					if (options.failFast) {
 						throw e;
 					} else {
 						log.error("Could not back up", e);
 					}
-				} else {
-					files.add(file);
+				} else if (options.checkTimestamps && Files.getLastModifiedTime(localSource).compareTo(Files.getLastModifiedTime(localDestination)) < 0)
+					log.debug("Skipping " + localSource + " based on file time");
+				else {
+					files.add(localSource);
 				}
 				return FileVisitResult.CONTINUE;
 			}
