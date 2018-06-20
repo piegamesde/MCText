@@ -53,7 +53,6 @@ import com.flowpowered.nbt.stream.NBTInputStream;
 import com.flowpowered.nbt.stream.NBTOutputStream;
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
-import com.google.gson.JsonParseException;
 import com.google.gson.TypeAdapter;
 import com.google.gson.stream.JsonReader;
 import com.google.gson.stream.JsonToken;
@@ -103,128 +102,112 @@ public class Converter {
 
 		@Override
 		public void write(JsonWriter out, RegionFile value) throws IOException {
-			out.beginObject();
-
-			for (int i = 0; i < 1024; i++) {
-				int chunkPos = value.locations2.get(i) >>> 8;
-				int chunkLength = value.locations2.get(i) & 0xFF;
-				int timestamp = value.timestamps2.get(i);
-
-				if (value.chunks[i] != null) {
-					out.name(Integer.toString(chunkPos));
-					out.beginObject();
-
-					out.name("index");
-					out.value(i);
-					out.name("timestamp");
-					out.value(timestamp);
-
-					ByteBuffer data = value.chunks[i];
-					int realChunkLength = data.getInt() - 1;
-					int compression = data.get();
-					out.name("compression");
-					out.value(compression);
-
-					NBTInputStream nbtIn = new NBTInputStream(new ByteArrayInputStream(data.array(), 5, realChunkLength), compression);
-					out.name("chunk");
-					Converter.this.write(out, nbtIn.readTag(), "chunk", false);
-					nbtIn.close();
-
-					if (options.keepUnusedData) {
-						byte[] unusedData = new byte[(chunkLength << 12) - realChunkLength - 5];
-						System.arraycopy(data.array(), realChunkLength + 5, unusedData, 0, unusedData.length);
-						out.name("unused");
-						out.value(Base64.getEncoder().encodeToString(unusedData));
-					}
-
-					out.endObject();
-				}
-			}
-
-			if (value.unused != null && options.keepUnusedData)
-				for (Entry<Integer, ByteBuffer> e : value.unused.entrySet()) {
-					out.name(e.getKey().toString());
-					out.value(Base64.getEncoder().encodeToString(e.getValue().array()));
-				}
-			out.endObject();
+			TAG_ADAPTER.write(out, writeNBT(value));
 		}
 
 		@Override
 		public RegionFile read(JsonReader in) throws IOException {
-			ByteBuffer locations, timestamps;
-			IntBuffer locations2, timestamps2;
-			ByteBuffer[] chunks = new ByteBuffer[1024];
-
-			locations = ByteBuffer.allocate(4096);
-			timestamps = ByteBuffer.allocate(4096);
-			locations2 = locations.asIntBuffer();
-			timestamps2 = timestamps.asIntBuffer();
-
-			Map<Integer, ByteBuffer> unused = new HashMap<>();
-
-			in.beginObject();
-
-			while (in.peek() != JsonToken.END_OBJECT) {
-				String name = in.nextName();
-				int chunkPos = Integer.parseInt(name);
-				if (in.peek() == JsonToken.BEGIN_OBJECT) { // Actual chunk data
-					in.beginObject();
-
-					if (!in.nextName().equals("index"))
-						throw new JsonParseException("index must be first element in object");
-					int i = in.nextInt();
-
-					if (!in.nextName().equals("timestamp"))
-						throw new JsonParseException("timestamp must be the third element in object");
-					int timestamp = in.nextInt();
-
-					if (!in.nextName().equals("compression"))
-						throw new JsonParseException("compression must be the fourth element in object");
-					byte compression = (byte) in.nextInt();
-
-					if (!in.nextName().equals("chunk"))
-						throw new JsonParseException("chunk must be the fifth element in object");
-
-					ByteArrayOutputStream baos = new ByteArrayOutputStream();
-					NBTOutputStream s = new NBTOutputStream(new BufferedOutputStream(baos = new ByteArrayOutputStream()), compression);
-					s.writeTag(Converter.this.read(in, "", TagType.TAG_COMPOUND));
-					s.flush();
-					s.close();
-
-					byte[] chunk = baos.toByteArray();
-					int chunkLength = (int) Math.ceil((chunk.length + 6) / 4096d);
-					chunks[i] = ByteBuffer.allocate(chunkLength << 12);
-					chunks[i].putInt(chunk.length + 1);
-					chunks[i].put(compression);
-					chunks[i].put(chunk);
-
-					if (in.peek() != JsonToken.END_OBJECT) {
-						// Read unused data
-						if (options.keepUnusedData) {
-							in.nextName();
-							byte[] unused2 = Base64.getDecoder().decode(in.nextString());
-							chunks[i].put(unused2);
-						} else { // Discard unused data
-							in.nextName();
-							in.nextString();
-						}
-					}
-
-					chunks[i].flip();
-
-					locations2.put(i, chunkPos << 8 | (chunkLength & 0xFF));
-					timestamps2.put(i, timestamp);
-
-					in.endObject();
-				} else if (options.keepUnusedData) { // Unused data
-					ByteBuffer value = ByteBuffer.wrap(Base64.getDecoder().decode(in.nextString()));
-					unused.put(chunkPos, value);
-				}
-			}
-			in.endObject();
-			return new RegionFile(locations, timestamps, chunks, unused);
+			return readNBT(TAG_ADAPTER.read(in));
 		}
 	};
+
+	public RegionFile readNBT(CompoundTag in) throws IOException {
+		ByteBuffer locations, timestamps;
+		IntBuffer locations2, timestamps2;
+		ByteBuffer[] chunks = new ByteBuffer[1024];
+
+		locations = ByteBuffer.allocate(4096);
+		timestamps = ByteBuffer.allocate(4096);
+		locations2 = locations.asIntBuffer();
+		timestamps2 = timestamps.asIntBuffer();
+
+		Map<Integer, ByteBuffer> unused = new HashMap<>();
+
+		CompoundMap map = in.getValue();
+
+		for (Entry<String, Tag<?>> entry : map.entrySet()) {
+			String name = entry.getKey();
+			int chunkPos = Integer.parseInt(name);
+			if (entry.getValue() instanceof CompoundTag) { // Actual chunk data
+				CompoundTag chunk = (CompoundTag) entry.getValue();
+				CompoundMap chunkMap = chunk.getValue();
+
+				int i = (int) chunkMap.get("index").getValue();
+				int timestamp = (int) chunkMap.get("timestamp").getValue();
+				byte compression = (byte) chunkMap.get("compression").getValue();
+
+				ByteArrayOutputStream baos = new ByteArrayOutputStream();
+				NBTOutputStream s = new NBTOutputStream(new BufferedOutputStream(baos = new ByteArrayOutputStream()), compression);
+				s.writeTag(new CompoundTag("", ((CompoundTag) chunkMap.get("chunk")).getValue()));
+				s.flush();
+				s.close();
+
+				byte[] chunkData = baos.toByteArray();
+				int chunkLength = (int) Math.ceil((chunkData.length + 6) / 4096d);
+				chunks[i] = ByteBuffer.allocate(chunkLength << 12);
+				chunks[i].putInt(chunkData.length + 1);
+				chunks[i].put(compression);
+				chunks[i].put(chunkData);
+
+				if (options.keepUnusedData && chunkMap.containsKey("unused"))
+					chunks[i].put((byte[]) chunkMap.get("unused").getValue());
+
+				chunks[i].flip();
+
+				locations2.put(i, chunkPos << 8 | (chunkLength & 0xFF));
+				timestamps2.put(i, timestamp);
+
+			} else if (options.keepUnusedData) { // Unused data
+				ByteBuffer value = ByteBuffer.wrap((byte[]) entry.getValue().getValue());
+				unused.put(chunkPos, value);
+			}
+		}
+		return new RegionFile(locations, timestamps, chunks, unused);
+	}
+
+	public CompoundTag writeNBT(RegionFile file) throws IOException {
+		CompoundMap map = new CompoundMap();
+		CompoundTag ret = new CompoundTag("", map);
+
+		for (int i = 0; i < 1024; i++) {
+			int chunkPos = file.locations2.get(i) >>> 8;
+			int chunkLength = file.locations2.get(i) & 0xFF;
+			int timestamp = file.timestamps2.get(i);
+
+			if (file.chunks[i] != null) {
+				CompoundMap chunkMap = new CompoundMap();
+				CompoundTag chunk = new CompoundTag(Integer.toString(chunkPos), chunkMap);
+				map.put(Integer.toString(chunkPos), chunk);
+
+				chunkMap.put("index", new IntTag("index", i));
+				chunkMap.put("timestamp", new IntTag("timestamp", timestamp));
+
+				ByteBuffer data = file.chunks[i];
+				int realChunkLength = data.getInt() - 1;
+				byte compression = data.get();
+				chunkMap.put("compression", new ByteTag("compression", compression));
+
+				NBTInputStream nbtIn = new NBTInputStream(new ByteArrayInputStream(data.array(), 5, realChunkLength), compression);
+				chunkMap.put("chunk", new CompoundTag("chunk", ((CompoundTag) nbtIn.readTag()).getValue()));
+				// chunkMap.put("chunk", nbtIn.readTag());
+
+				nbtIn.close();
+
+				if (options.keepUnusedData) {
+					byte[] unusedData = new byte[(chunkLength << 12) - realChunkLength - 5];
+					System.arraycopy(data.array(), realChunkLength + 5, unusedData, 0, unusedData.length);
+					chunkMap.put("unused", new ByteArrayTag("unused", unusedData));
+				}
+			}
+		}
+
+		if (file.unused != null && options.keepUnusedData)
+			for (Entry<Integer, ByteBuffer> e : file.unused.entrySet()) {
+				map.put(e.getKey().toString(), new ByteArrayTag(e.getKey().toString(), e.getValue().array()));
+			}
+
+		return ret;
+	}
 
 	void write(JsonWriter out, Tag<?> nbt, String name, boolean writeName) throws IOException {
 		if (nbt.getType() != TagType.TAG_LIST && name != null && writeName)

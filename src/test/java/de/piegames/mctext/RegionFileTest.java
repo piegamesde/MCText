@@ -98,17 +98,17 @@ public class RegionFileTest {
 		}
 		file.rewind();
 		{ // Check Anvil <--> NBT
-			RegionFile file2 = new RegionFile(file.writeNBT(converter.options), converter.options);
+			RegionFile file2 = converter.readNBT(converter.writeNBT(file));
 			file2.write(tmp2);
 
 			assertRegionFileEquals(tmp1, tmp2);
 		}
 		file.rewind();
 		{ // Check Anvil <--> NBT <--> JSON
-			CompoundTag tag1 = file.writeNBT(converter.options);
+			CompoundTag tag1 = converter.writeNBT(file);
 			CompoundTag tag2 = converter.gson.fromJson(converter.gson.toJson(tag1), CompoundTag.class);
 			assertEquals(tag1, tag2);
-			RegionFile file2 = new RegionFile(tag2, converter.options);
+			RegionFile file2 = converter.readNBT(tag2);
 			file2.write(tmp2);
 
 			assertRegionFileEquals(tmp1, tmp2);

@@ -4,15 +4,16 @@ public class Options {
 
 	public final boolean prettyPrinting;
 	public final boolean keepUnusedData;
-	public final boolean dryRun;
+	public boolean writeJSON;
+
 	public final boolean overwriteExisting;
+	public final boolean dryRun;
+	public final boolean failFast;
+	public final boolean delete;
+	public final boolean checkTimestamps;
 
 	// Not implemented yet TODO
 	// public final Level level;
-	public final boolean failFast;
-	public final boolean delete;
-
-	public final boolean checkTimestamps;
 
 	public Options() {
 		this(false, false, false, false, false, false, false);
