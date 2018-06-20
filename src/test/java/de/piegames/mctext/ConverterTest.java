@@ -19,13 +19,13 @@ import com.flowpowered.nbt.CompoundTag;
 import com.flowpowered.nbt.stream.NBTInputStream;
 import com.flowpowered.nbt.stream.NBTOutputStream;
 
-public class RegionFileTest {
+public class ConverterTest {
 
-	public RegionFileTest() {
+	public ConverterTest() {
 	}
 
-	Converter converter1 = new Converter(new Options(false, true, false, false, true, false, false));
-	Converter converter2 = new Converter(new Options(false, false, false, false, true, false, false));
+	Converter converter1 = new Converter(false, true);
+	Converter converter2 = new Converter(false, false);
 
 	@Test
 	public void testNBT1() throws Exception {

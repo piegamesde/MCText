@@ -83,12 +83,12 @@ public class GitBackup {
 			unzip(path, unpacked);
 
 			System.out.println("Convert world");
-			Converter converter = new Converter(new Options(true, false, false, true, false, false, true));
+			BackupHelper backup = new BackupHelper(true, false, false, true, false, false, true);
 			Path world = gitPath.resolve("world");
 			if (!Files.exists(world))
 				Files.createDirectory(world);
 			try {
-				converter.backupWorld(unpacked, world);
+				backup.backupWorld(unpacked, world);
 			} catch (IOException | RuntimeException e) {
 				e.printStackTrace();
 				return;

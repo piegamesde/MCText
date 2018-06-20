@@ -4,33 +4,16 @@ import java.io.BufferedOutputStream;
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
-import java.io.Writer;
 import java.nio.ByteBuffer;
 import java.nio.IntBuffer;
 import java.nio.LongBuffer;
 import java.nio.ShortBuffer;
-import java.nio.file.FileAlreadyExistsException;
-import java.nio.file.FileSystems;
-import java.nio.file.FileVisitResult;
-import java.nio.file.FileVisitor;
-import java.nio.file.Files;
-import java.nio.file.Path;
-import java.nio.file.PathMatcher;
-import java.nio.file.StandardCopyOption;
-import java.nio.file.attribute.BasicFileAttributes;
 import java.util.Base64;
 import java.util.HashMap;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
-import java.util.Objects;
-import java.util.Queue;
-import java.util.zip.ZipException;
-
-import org.apache.commons.io.FileUtils;
-import org.apache.logging.log4j.LogManager;
-import org.apache.logging.log4j.Logger;
 
 import com.flowpowered.nbt.ByteArrayTag;
 import com.flowpowered.nbt.ByteTag;
@@ -60,25 +43,22 @@ import com.google.gson.stream.JsonWriter;
 
 public class Converter {
 
-	public static Logger log = LogManager.getLogger(Converter.class);
-
-	public static final PathMatcher nbt = FileSystems.getDefault().getPathMatcher("glob:**.{dat,dat_old,dat_new,nbt}");
-	public static final PathMatcher anvil = FileSystems.getDefault().getPathMatcher("glob:**.{mca,mcr}");
-
-	protected Options options;
+	public final boolean prettyPrinting;
+	public final boolean keepUnusedData;
 
 	public final Gson gson;
 
 	public Converter() {
-		this(new Options());
+		this(false, false);
 	}
 
-	public Converter(Options options) {
-		this.options = Objects.requireNonNull(options);
+	public Converter(boolean prettyPrinting, boolean keepUnusedData) {
+		this.prettyPrinting = prettyPrinting;
+		this.keepUnusedData = keepUnusedData;
 
 		GsonBuilder builder = new GsonBuilder();
 		builder.setLenient();
-		if (options.prettyPrinting)
+		if (prettyPrinting)
 			builder.setPrettyPrinting();
 		builder.registerTypeAdapter(CompoundTag.class, TAG_ADAPTER);
 		builder.registerTypeAdapter(RegionFile.class, REGION_ADAPTER);
@@ -149,7 +129,7 @@ public class Converter {
 				chunks[i].put(compression);
 				chunks[i].put(chunkData);
 
-				if (options.keepUnusedData && chunkMap.containsKey("unused"))
+				if (keepUnusedData && chunkMap.containsKey("unused"))
 					chunks[i].put((byte[]) chunkMap.get("unused").getValue());
 
 				chunks[i].flip();
@@ -157,7 +137,7 @@ public class Converter {
 				locations2.put(i, chunkPos << 8 | (chunkLength & 0xFF));
 				timestamps2.put(i, timestamp);
 
-			} else if (options.keepUnusedData) { // Unused data
+			} else if (keepUnusedData) { // Unused data
 				ByteBuffer value = ByteBuffer.wrap((byte[]) entry.getValue().getValue());
 				unused.put(chunkPos, value);
 			}
@@ -189,11 +169,10 @@ public class Converter {
 
 				NBTInputStream nbtIn = new NBTInputStream(new ByteArrayInputStream(data.array(), 5, realChunkLength), compression);
 				chunkMap.put("chunk", new CompoundTag("chunk", ((CompoundTag) nbtIn.readTag()).getValue()));
-				// chunkMap.put("chunk", nbtIn.readTag());
 
 				nbtIn.close();
 
-				if (options.keepUnusedData) {
+				if (keepUnusedData) {
 					byte[] unusedData = new byte[(chunkLength << 12) - realChunkLength - 5];
 					System.arraycopy(data.array(), realChunkLength + 5, unusedData, 0, unusedData.length);
 					chunkMap.put("unused", new ByteArrayTag("unused", unusedData));
@@ -201,7 +180,7 @@ public class Converter {
 			}
 		}
 
-		if (file.unused != null && options.keepUnusedData)
+		if (file.unused != null && keepUnusedData)
 			for (Entry<Integer, ByteBuffer> e : file.unused.entrySet()) {
 				map.put(e.getKey().toString(), new ByteArrayTag(e.getKey().toString(), e.getValue().array()));
 			}
@@ -370,158 +349,5 @@ public class Converter {
 
 	static String encode(String key, TagType type) {
 		return String.format("%02x", type.getId()) + key;
-	}
-
-	public void backupFile(Path source, Path destination) throws IOException {
-		if (nbt.matches(source))
-			backupNBT(source, destination);
-		else if (anvil.matches(source)) {
-			backupAnvil(source, destination);
-		} else {
-			log.debug(source + " does not seem to be an nbt file and will be copied");
-			if (!options.dryRun) {
-				if (options.overwriteExisting)
-					Files.copy(source, destination, StandardCopyOption.REPLACE_EXISTING);
-				else
-					Files.copy(source, destination);
-			}
-		}
-	}
-
-	public void backupNBT(Path source, Path destination) throws IOException {
-		log.debug("Backing up " + source + " as nbt file");
-		if (Files.exists(destination) && !options.overwriteExisting)
-			throw new FileAlreadyExistsException(destination.toString(), null, "Run with --overwrite-existing or --delete");
-		if (options.dryRun)
-			return;
-		try (NBTInputStream s = new NBTInputStream(Files.newInputStream(source));
-				Writer writer = Files.newBufferedWriter(destination)) {
-			writer.write(gson.toJson(s.readTag()));
-		} catch (ZipException e) {
-			log.warn("Could not unzip file, trying uncompressed nbt");
-			try (NBTInputStream s = new NBTInputStream(Files.newInputStream(source), NBTInputStream.NO_COMPRESSION);
-					Writer writer = Files.newBufferedWriter(destination)) {
-				writer.write(gson.toJson(s.readTag()));
-			}
-		}
-	}
-
-	public void backupAnvil(Path source, Path destination) throws IOException {
-		log.debug("Backing up " + source + " as anvil file");
-		if (Files.exists(destination) && !options.overwriteExisting)
-			throw new FileAlreadyExistsException(destination.toString(), null, "Run with --overwrite-existing or --delete");
-		if (options.dryRun)
-			return;
-		try (Writer writer = Files.newBufferedWriter(destination)) {
-			writer.write(gson.toJson(new RegionFile(source)));
-		}
-	}
-
-	public void backupWorld(Path source, Path destination) throws IOException {
-		for (Path file : walkTree(source, destination))
-			try {
-				backupFile(file, destination.resolve(source.relativize(file)));
-			} catch (IOException | RuntimeException e) {
-				if (options.failFast)
-					throw e;
-				else
-					log.error("Could not back up file " + file, e);
-			}
-	}
-
-	public void restoreFile(Path source, Path destination) throws IOException {
-		if (nbt.matches(source))
-			restoreNBT(source, destination);
-		else if (anvil.matches(source)) {
-			restoreAnvil(source, destination);
-		} else {
-			log.debug(source + " does not seem to be an nbt file and will be copied");
-			if (!options.dryRun) {
-				if (options.overwriteExisting)
-					Files.copy(source, destination, StandardCopyOption.REPLACE_EXISTING);
-				else
-					Files.copy(source, destination);
-			}
-		}
-	}
-
-	public void restoreNBT(Path source, Path destination) throws IOException {
-		log.debug("Restoring " + source + " as nbt file");
-		if (Files.exists(destination) && !options.overwriteExisting)
-			throw new FileAlreadyExistsException(destination.toString(), null, "Run with --overwrite-existing or --delete");
-		if (options.dryRun)
-			return;
-		try (NBTOutputStream s = new NBTOutputStream(Files.newOutputStream(destination))) {
-			s.writeTag(gson.fromJson(new String(Files.readAllBytes(source)), CompoundTag.class));
-		}
-	}
-
-	public void restoreAnvil(Path source, Path destination) throws IOException {
-		log.debug("Backing up " + source + " as anvil file");
-		if (Files.exists(destination) && !options.overwriteExisting)
-			throw new FileAlreadyExistsException(destination.toString(), null, "Run with --overwrite-existing or --delete");
-		if (options.dryRun)
-			return;
-		gson.fromJson(new String(Files.readAllBytes(source)), RegionFile.class).write(destination);
-	}
-
-	public void restoreWorld(Path source, Path destination) throws IOException {
-		for (Path file : walkTree(source, destination))
-			try {
-				restoreFile(file, destination.resolve(source.relativize(file)));
-			} catch (IOException | RuntimeException e) {
-				if (options.failFast)
-					throw e;
-				else
-					log.error("Could not restore file " + file, e);
-			}
-	}
-
-	Queue<Path> walkTree(Path source, Path destination) throws IOException {
-		if (options.delete)
-			FileUtils.deleteDirectory(destination.toFile());
-
-		Queue<Path> files = new LinkedList<>();
-		Files.walkFileTree(source, new FileVisitor<Path>() {
-
-			@Override
-			public FileVisitResult preVisitDirectory(Path dir, BasicFileAttributes attrs) throws IOException {
-				dir = destination.resolve(source.relativize(dir));
-				if (!Files.exists(dir))
-					log.debug("Creating folder " + dir);
-				Files.createDirectories(dir);
-				return FileVisitResult.CONTINUE;
-			}
-
-			@Override
-			public FileVisitResult visitFile(Path localSource, BasicFileAttributes attrs) throws IOException {
-				Path localDestination = destination.resolve(source.relativize(localSource));
-				if (Files.exists(localDestination) && !options.overwriteExisting) {
-					IOException e = new FileAlreadyExistsException(localDestination.toString(), null, "Run with --overwrite-existing or --delete");
-					if (options.failFast) {
-						throw e;
-					} else {
-						log.error("Could not back up", e);
-					}
-				} else if (options.checkTimestamps && Files.getLastModifiedTime(localSource).compareTo(Files.getLastModifiedTime(localDestination)) < 0)
-					log.debug("Skipping " + localSource + " based on file time");
-				else {
-					files.add(localSource);
-				}
-				return FileVisitResult.CONTINUE;
-			}
-
-			@Override
-			public FileVisitResult visitFileFailed(Path file, IOException exc) throws IOException {
-				log.error("Visiting file " + file + " failed", exc);
-				return options.failFast ? FileVisitResult.TERMINATE : FileVisitResult.CONTINUE;
-			}
-
-			@Override
-			public FileVisitResult postVisitDirectory(Path dir, IOException exc) throws IOException {
-				return FileVisitResult.CONTINUE;
-			}
-		});
-		return files;
 	}
 }

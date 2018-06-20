@@ -28,7 +28,7 @@ public class Standalone implements Runnable {
 		BACKUP_FILE, BACKUP_WORLD, RESTORE_FILE, RESTORE_WORLD;
 	}
 
-	public static abstract class ConvertCommand implements Callable<Converter> {
+	public static abstract class ConvertCommand implements Callable<BackupHelper> {
 		@Option(names = { "--dry-run", "-n" }, description = "Spam the log without actually doing anything")
 		public boolean dryRun;
 
@@ -73,10 +73,10 @@ public class Standalone implements Runnable {
 	public static class BackupFileCommand extends BackupCommand {
 
 		@Override
-		public Converter call() throws IOException {
-			Converter converter = new Converter(new Options(prettyPrinting, keepUnusedData, dryRun, overwriteExisting, false, false, false));
-			converter.backupFile(source, destination);
-			return converter;
+		public BackupHelper call() throws IOException {
+			BackupHelper backup = new BackupHelper(prettyPrinting, keepUnusedData, dryRun, overwriteExisting, false, false, false);
+			backup.backupFile(source, destination);
+			return backup;
 		}
 	}
 
@@ -84,10 +84,10 @@ public class Standalone implements Runnable {
 	public static class BackupWorldCommand extends BackupCommand {
 
 		@Override
-		public Converter call() throws IOException {
-			Converter converter = new Converter(new Options(prettyPrinting, keepUnusedData, dryRun, overwriteExisting, false, false, false));
-			converter.backupWorld(source, destination);
-			return converter;
+		public BackupHelper call() throws IOException {
+			BackupHelper backup = new BackupHelper(prettyPrinting, keepUnusedData, dryRun, overwriteExisting, false, false, false);
+			backup.backupWorld(source, destination);
+			return backup;
 		}
 	}
 
@@ -95,10 +95,10 @@ public class Standalone implements Runnable {
 	public static class RestoreFileCommand extends RestoreCommand {
 
 		@Override
-		public Converter call() throws IOException {
-			Converter converter = new Converter(new Options(false, keepUnusedData, dryRun, overwriteExisting, false, false, false));
-			converter.restoreFile(source, destination);
-			return converter;
+		public BackupHelper call() throws IOException {
+			BackupHelper backup = new BackupHelper(false, keepUnusedData, dryRun, overwriteExisting, false, false, false);
+			backup.restoreFile(source, destination);
+			return backup;
 		}
 	}
 
@@ -106,10 +106,10 @@ public class Standalone implements Runnable {
 	public static class RestoreWorldCommand extends RestoreCommand {
 
 		@Override
-		public Converter call() throws IOException {
-			Converter converter = new Converter(new Options(false, keepUnusedData, dryRun, overwriteExisting, false, false, false));
-			converter.restoreWorld(source, destination);
-			return converter;
+		public BackupHelper call() throws IOException {
+			BackupHelper backup = new BackupHelper(false, keepUnusedData, dryRun, overwriteExisting, false, false, false);
+			backup.restoreWorld(source, destination);
+			return backup;
 		}
 	}
 
