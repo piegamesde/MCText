@@ -15,23 +15,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
 
-import com.flowpowered.nbt.ByteArrayTag;
-import com.flowpowered.nbt.ByteTag;
-import com.flowpowered.nbt.CompoundMap;
-import com.flowpowered.nbt.CompoundTag;
-import com.flowpowered.nbt.DoubleTag;
-import com.flowpowered.nbt.EndTag;
-import com.flowpowered.nbt.FloatTag;
-import com.flowpowered.nbt.IntArrayTag;
-import com.flowpowered.nbt.IntTag;
-import com.flowpowered.nbt.ListTag;
-import com.flowpowered.nbt.LongArrayTag;
-import com.flowpowered.nbt.LongTag;
-import com.flowpowered.nbt.ShortArrayTag;
-import com.flowpowered.nbt.ShortTag;
-import com.flowpowered.nbt.StringTag;
-import com.flowpowered.nbt.Tag;
-import com.flowpowered.nbt.TagType;
+import com.flowpowered.nbt.*;
 import com.flowpowered.nbt.stream.NBTInputStream;
 import com.flowpowered.nbt.stream.NBTOutputStream;
 import com.google.gson.Gson;
@@ -58,6 +42,7 @@ public class Converter {
 
 		GsonBuilder builder = new GsonBuilder();
 		builder.setLenient();
+		builder.disableHtmlEscaping();
 		if (prettyPrinting)
 			builder.setPrettyPrinting();
 		builder.registerTypeAdapter(CompoundTag.class, TAG_ADAPTER);
@@ -255,8 +240,10 @@ public class Converter {
 		case TAG_LIST: {
 			@SuppressWarnings("unchecked")
 			ListTag<Tag<?>> list = (ListTag<Tag<?>>) nbt;
-			out.name(encode(encode(name, TagType.getByTagClass(list.getElementType())), TagType.TAG_LIST));
+			if (writeName)
+				out.name(encode(name, TagType.TAG_LIST));
 			out.beginArray();
+			out.value(encode("", TagType.getByTagClass(list.getElementType())));
 			for (Tag<?> tag : list.getValue())
 				write(out, tag, "", false);
 			out.endArray();
@@ -303,13 +290,13 @@ public class Converter {
 			ShortBuffer shortBuffer = ByteBuffer.wrap(Base64.getDecoder().decode(in.nextString())).asShortBuffer();
 			short[] array = new short[shortBuffer.remaining()];
 			shortBuffer.get(array);
-			return new ShortArrayTag(name, shortBuffer.array());
+			return new ShortArrayTag(name, array);
 		}
 		case TAG_LONG_ARRAY: {
 			LongBuffer longBuffer = ByteBuffer.wrap(Base64.getDecoder().decode(in.nextString())).asLongBuffer();
 			long[] array = new long[longBuffer.remaining()];
 			longBuffer.get(array);
-			return new LongArrayTag(name, longBuffer.array());
+			return new LongArrayTag(name, array);
 		}
 		case TAG_COMPOUND: {
 			CompoundMap map = new CompoundMap();
@@ -327,10 +314,9 @@ public class Converter {
 			return compound;
 		}
 		case TAG_LIST: {
-			TagType listType = decode(name);
-			name = name.substring(2);
 			List<Tag> tags = new LinkedList<Tag>();
 			in.beginArray();
+			TagType listType = decode(in.nextString());
 			while (in.peek() != JsonToken.END_ARRAY)
 				tags.add(read(in, "", listType));
 			in.endArray();

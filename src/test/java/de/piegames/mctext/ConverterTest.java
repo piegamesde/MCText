@@ -79,6 +79,26 @@ public class ConverterTest {
 		testRegionSerialization(Paths.get(getClass().getResource("/r2.mca").toURI()), false);
 	}
 
+	@Test
+	public void testRegionSerialization4a() throws Exception {
+		testRegionSerialization(Paths.get(getClass().getResource("/r3.mca").toURI()), true);
+	}
+
+	@Test
+	public void testRegionSerialization4b() throws Exception {
+		testRegionSerialization(Paths.get(getClass().getResource("/r3.mca").toURI()), false);
+	}
+
+	@Test
+	public void testRegionSerialization5a() throws Exception {
+		testRegionSerialization(Paths.get(getClass().getResource("/r4.mca").toURI()), true);
+	}
+
+	@Test
+	public void testRegionSerialization5b() throws Exception {
+		testRegionSerialization(Paths.get(getClass().getResource("/r4.mca").toURI()), false);
+	}
+
 	private void testRegionSerialization(Path expected, boolean keepUnused) throws Exception {
 		Converter converter = (keepUnused ? converter1 : converter2);
 		RegionFile file = new RegionFile(expected);
