@@ -4,3 +4,7 @@ target/
 bin/
 
 \.settings/
+
+build/
+
+\.gradle/

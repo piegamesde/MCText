@@ -40,7 +40,7 @@ public class ConverterTest {
 
 	@Test
 	public void testNBT2() throws Exception {
-		File dat = new File(getClass().getResource("/testworld/mcedit_waypoints.dat").toURI());
+		File dat = new File(getClass().getResource("/mcedit_waypoints.dat").toURI());
 		File tmp = File.createTempFile("mcedit_waypoints", ".dat");
 		NBTOutputStream out = new NBTOutputStream(new FileOutputStream(tmp));
 		NBTInputStream in = new NBTInputStream(new FileInputStream(dat));
@@ -71,7 +71,7 @@ public class ConverterTest {
 
 	@Test
 	public void testRegionSerialization3a() throws Exception {
-		testRegionSerialization(Paths.get(getClass().getResource("/r2.mca").toURI()), true);
+		testRegionSerialization(Paths.get(getClass().getResource("/testworld/r2.mca").toURI()), true);
 	}
 
 	@Test

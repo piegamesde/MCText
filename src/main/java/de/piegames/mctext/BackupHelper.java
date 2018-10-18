@@ -67,7 +67,7 @@ public class BackupHelper {
 		else if (anvil.matches(source)) {
 			backupAnvil(source, destination);
 		} else {
-			log.debug(source + " does not seem to be an nbt file and will be copied");
+			log.debug(source + " does not seem to be a convertible file and will be copied");
 			if (!dryRun) {
 				if (overwriteExisting)
 					Files.copy(source, destination, StandardCopyOption.REPLACE_EXISTING);
@@ -129,7 +129,7 @@ public class BackupHelper {
 		else if (anvil.matches(source)) {
 			restoreAnvil(source, destination);
 		} else {
-			log.debug(source + " does not seem to be an nbt file and will be copied");
+			log.debug(source + " does not seem to be a convertible file and will be copied");
 			if (!dryRun) {
 				if (overwriteExisting)
 					Files.copy(source, destination, StandardCopyOption.REPLACE_EXISTING);

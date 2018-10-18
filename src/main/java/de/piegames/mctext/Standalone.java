@@ -25,7 +25,6 @@ import picocli.CommandLine.RunLast;
 				BackupWorldCommand.class,
 				RestoreFileCommand.class,
 				RestoreWorldCommand.class })
-
 public class Standalone implements Runnable {
 
 	public static enum CommandType {
