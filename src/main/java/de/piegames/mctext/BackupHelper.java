@@ -14,7 +14,6 @@ import java.nio.file.attribute.BasicFileAttributes;
 import java.util.LinkedList;
 import java.util.Objects;
 import java.util.Queue;
-import java.util.zip.ZipException;
 
 import org.apache.commons.io.FileUtils;
 import org.apache.logging.log4j.LogManager;
@@ -25,30 +24,37 @@ import com.flowpowered.nbt.stream.NBTInputStream;
 import com.flowpowered.nbt.stream.NBTOutputStream;
 
 public class BackupHelper {
-	final Logger log = LogManager.getLogger(this);
+	public static final Logger		log		= LogManager.getLogger(BackupHelper.class);
 
-	public static final PathMatcher nbt = FileSystems.getDefault().getPathMatcher("glob:**.{dat,dat_old,dat_new,nbt}");
-	public static final PathMatcher anvil = FileSystems.getDefault().getPathMatcher("glob:**.{mca,mcr}");
+	public static final PathMatcher	nbt		= FileSystems.getDefault().getPathMatcher("glob:**.{dat,dat_old,dat_new,nbt}");
+	public static final PathMatcher	anvil	= FileSystems.getDefault().getPathMatcher("glob:**.{mca,mcr}");
 
-	protected Converter converter;
+	protected Converter				converter;
 
-	public boolean writeJSON;
-	public final boolean overwriteExisting;
-	public final boolean dryRun;
-	public final boolean failFast;
-	public final boolean delete;
-	public final boolean checkTimestamps;
+	public boolean					writeJSON;
+	public final boolean			overwriteExisting;
+	public final int				nbtCompression;
+	public final boolean			decompress;
+	public final boolean			dryRun;
+	public final boolean			failFast;
+	public final boolean			delete;
+	public final boolean			checkTimestamps;
 
-	public BackupHelper(boolean prettyPrinting, boolean keepUnusedData, boolean dryRun, boolean overwriteExisting, boolean failFast, boolean delete,
+	public BackupHelper(boolean prettyPrinting, boolean keepUnusedData, boolean dryRun, int nbtCompression, boolean decompress, boolean overwriteExisting,
+			boolean failFast,
+			boolean delete,
 			boolean checkTimestamps) {
-		this(new Converter(prettyPrinting, keepUnusedData), dryRun, overwriteExisting, failFast, delete, checkTimestamps);
+		this(new Converter(prettyPrinting, keepUnusedData), dryRun, nbtCompression, decompress, overwriteExisting, failFast, delete, checkTimestamps);
 	}
 
-	public BackupHelper(Converter converter, boolean dryRun, boolean overwriteExisting, boolean failFast, boolean delete,
+	public BackupHelper(Converter converter, boolean dryRun, int nbtCompression, boolean decompress, boolean overwriteExisting, boolean failFast,
+			boolean delete,
 			boolean checkTimestamps) {
 		this.converter = Objects.requireNonNull(converter);
 
 		this.dryRun = dryRun;
+		this.nbtCompression = nbtCompression;
+		this.decompress = decompress;
 		this.overwriteExisting = overwriteExisting;
 		this.failFast = failFast;
 		this.delete = delete;
@@ -77,16 +83,16 @@ public class BackupHelper {
 			throw new FileAlreadyExistsException(destination.toString(), null, "Run with --overwrite-existing or --delete");
 		if (dryRun)
 			return;
-		try (NBTInputStream s = new NBTInputStream(Files.newInputStream(source));
-				Writer writer = Files.newBufferedWriter(destination)) {
-			writer.write(converter.gson.toJson(s.readTag()));
-		} catch (ZipException e) {
-			log.warn("Could not unzip file, trying uncompressed nbt");
-			try (NBTInputStream s = new NBTInputStream(Files.newInputStream(source), NBTInputStream.NO_COMPRESSION);
+		if (decompress)
+			try (NBTInputStream s = new NBTInputStream(Files.newInputStream(source), nbtCompression);
+					NBTOutputStream t = new NBTOutputStream(Files.newOutputStream(destination), NBTInputStream.NO_COMPRESSION)) {
+				t.writeTag(s.readTag());
+			}
+		else
+			try (NBTInputStream s = new NBTInputStream(Files.newInputStream(source), nbtCompression);
 					Writer writer = Files.newBufferedWriter(destination)) {
 				writer.write(converter.gson.toJson(s.readTag()));
 			}
-		}
 	}
 
 	public void backupAnvil(Path source, Path destination) throws IOException {
@@ -95,9 +101,14 @@ public class BackupHelper {
 			throw new FileAlreadyExistsException(destination.toString(), null, "Run with --overwrite-existing or --delete");
 		if (dryRun)
 			return;
-		try (Writer writer = Files.newBufferedWriter(destination)) {
-			writer.write(converter.gson.toJson(new RegionFile(source)));
-		}
+		if (decompress)
+			try (NBTOutputStream t = new NBTOutputStream(Files.newOutputStream(destination), NBTInputStream.NO_COMPRESSION)) {
+				t.writeTag(converter.writeNBT(new RegionFile(source)));
+			}
+		else
+			try (Writer writer = Files.newBufferedWriter(destination)) {
+				writer.write(converter.gson.toJson(new RegionFile(source)));
+			}
 	}
 
 	public void backupWorld(Path source, Path destination) throws IOException {
@@ -134,9 +145,15 @@ public class BackupHelper {
 			throw new FileAlreadyExistsException(destination.toString(), null, "Run with --overwrite-existing or --delete");
 		if (dryRun)
 			return;
-		try (NBTOutputStream s = new NBTOutputStream(Files.newOutputStream(destination))) {
-			s.writeTag(converter.gson.fromJson(new String(Files.readAllBytes(source)), CompoundTag.class));
-		}
+		if (decompress)
+			try (NBTOutputStream t = new NBTOutputStream(Files.newOutputStream(destination), nbtCompression);
+					NBTInputStream s = new NBTInputStream(Files.newInputStream(source), NBTInputStream.NO_COMPRESSION)) {
+				t.writeTag(s.readTag());
+			}
+		else
+			try (NBTOutputStream s = new NBTOutputStream(Files.newOutputStream(destination), nbtCompression)) {
+				s.writeTag(converter.gson.fromJson(new String(Files.readAllBytes(source)), CompoundTag.class));
+			}
 	}
 
 	public void restoreAnvil(Path source, Path destination) throws IOException {
@@ -145,7 +162,12 @@ public class BackupHelper {
 			throw new FileAlreadyExistsException(destination.toString(), null, "Run with --overwrite-existing or --delete");
 		if (dryRun)
 			return;
-		converter.gson.fromJson(new String(Files.readAllBytes(source)), RegionFile.class).write(destination);
+		if (decompress)
+			try (NBTInputStream s = new NBTInputStream(Files.newInputStream(source), NBTInputStream.NO_COMPRESSION)) {
+				converter.readNBT((CompoundTag) s.readTag()).write(destination);
+			}
+		else
+			converter.gson.fromJson(new String(Files.readAllBytes(source)), RegionFile.class).write(destination);
 	}
 
 	public void restoreWorld(Path source, Path destination) throws IOException {

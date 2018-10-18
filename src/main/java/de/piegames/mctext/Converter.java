@@ -167,7 +167,7 @@ public class Converter {
 
 		if (file.unused != null && keepUnusedData)
 			for (Entry<Integer, ByteBuffer> e : file.unused.entrySet()) {
-				map.put(e.getKey().toString(), new ByteArrayTag(e.getKey().toString(), e.getValue().array()));
+				map.put(String.valueOf(e.getKey()), new ByteArrayTag(String.valueOf(e.getKey()), e.getValue().array()));
 			}
 
 		return ret;

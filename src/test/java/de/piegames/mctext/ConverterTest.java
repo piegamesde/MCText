@@ -29,7 +29,7 @@ public class ConverterTest {
 
 	@Test
 	public void testNBT1() throws Exception {
-		File dat = new File(getClass().getResource("/level.dat").toURI());
+		File dat = new File(getClass().getResource("/testworld/level.dat").toURI());
 		File tmp = File.createTempFile("level", ".dat");
 		NBTOutputStream out = new NBTOutputStream(new FileOutputStream(tmp));
 		NBTInputStream in = new NBTInputStream(new FileInputStream(dat));
@@ -40,7 +40,7 @@ public class ConverterTest {
 
 	@Test
 	public void testNBT2() throws Exception {
-		File dat = new File(getClass().getResource("/mcedit_waypoints.dat").toURI());
+		File dat = new File(getClass().getResource("/testworld/mcedit_waypoints.dat").toURI());
 		File tmp = File.createTempFile("mcedit_waypoints", ".dat");
 		NBTOutputStream out = new NBTOutputStream(new FileOutputStream(tmp));
 		NBTInputStream in = new NBTInputStream(new FileInputStream(dat));
@@ -51,22 +51,22 @@ public class ConverterTest {
 
 	@Test
 	public void testRegionSerialization1a() throws Exception {
-		testRegionSerialization(Paths.get(getClass().getResource("/r0.mca").toURI()), true);
+		testRegionSerialization(Paths.get(getClass().getResource("/testworld/r0.mca").toURI()), true);
 	}
 
 	@Test
 	public void testRegionSerialization1b() throws Exception {
-		testRegionSerialization(Paths.get(getClass().getResource("/r0.mca").toURI()), false);
+		testRegionSerialization(Paths.get(getClass().getResource("/testworld/r0.mca").toURI()), false);
 	}
 
 	@Test
 	public void testRegionSerialization2a() throws Exception {
-		testRegionSerialization(Paths.get(getClass().getResource("/r1.mca").toURI()), true);
+		testRegionSerialization(Paths.get(getClass().getResource("/testworld/r1.mca").toURI()), true);
 	}
 
 	@Test
 	public void testRegionSerialization2b() throws Exception {
-		testRegionSerialization(Paths.get(getClass().getResource("/r1.mca").toURI()), false);
+		testRegionSerialization(Paths.get(getClass().getResource("/testworld/r1.mca").toURI()), false);
 	}
 
 	@Test
@@ -76,27 +76,27 @@ public class ConverterTest {
 
 	@Test
 	public void testRegionSerialization3b() throws Exception {
-		testRegionSerialization(Paths.get(getClass().getResource("/r2.mca").toURI()), false);
+		testRegionSerialization(Paths.get(getClass().getResource("/testworld/r2.mca").toURI()), false);
 	}
 
 	@Test
 	public void testRegionSerialization4a() throws Exception {
-		testRegionSerialization(Paths.get(getClass().getResource("/r3.mca").toURI()), true);
+		testRegionSerialization(Paths.get(getClass().getResource("/testworld/r3.mca").toURI()), true);
 	}
 
 	@Test
 	public void testRegionSerialization4b() throws Exception {
-		testRegionSerialization(Paths.get(getClass().getResource("/r3.mca").toURI()), false);
+		testRegionSerialization(Paths.get(getClass().getResource("/testworld/r3.mca").toURI()), false);
 	}
 
 	@Test
 	public void testRegionSerialization5a() throws Exception {
-		testRegionSerialization(Paths.get(getClass().getResource("/r4.mca").toURI()), true);
+		testRegionSerialization(Paths.get(getClass().getResource("/testworld/r4.mca").toURI()), true);
 	}
 
 	@Test
 	public void testRegionSerialization5b() throws Exception {
-		testRegionSerialization(Paths.get(getClass().getResource("/r4.mca").toURI()), false);
+		testRegionSerialization(Paths.get(getClass().getResource("/testworld/r4.mca").toURI()), false);
 	}
 
 	private void testRegionSerialization(Path expected, boolean keepUnused) throws Exception {

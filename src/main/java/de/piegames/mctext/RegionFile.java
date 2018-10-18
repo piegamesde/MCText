@@ -11,16 +11,17 @@ import java.util.Map;
 import java.util.Map.Entry;
 import java.util.Objects;
 import java.util.Set;
+import java.util.function.IntFunction;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 
 public class RegionFile {
 
-	protected Path file;
-	ByteBuffer locations, timestamps;
-	IntBuffer locations2, timestamps2;
-	ByteBuffer[] chunks = new ByteBuffer[1024];
-	Map<Integer, ByteBuffer> unused;
+	protected Path				file;
+	ByteBuffer					locations, timestamps;
+	IntBuffer					locations2, timestamps2;
+	ByteBuffer[]				chunks	= new ByteBuffer[1024];
+	Map<Integer, ByteBuffer>	unused;
 
 	public RegionFile(Path file) throws IOException {
 		this.file = file;
@@ -37,8 +38,14 @@ public class RegionFile {
 		raf.read(timestamps);
 		timestamps.flip();
 		timestamps2 = timestamps.asIntBuffer();
+		Set<Integer> unused = IntStream.range(2, (int) Math.ceil(raf.size() / 4096d))
+				.<Integer>mapToObj(new IntFunction<Integer>() {
 
-		Set<Integer> unused = IntStream.range(2, (int) Math.ceil(raf.size() / 4096d)).mapToObj(i -> i).collect(Collectors.toSet());
+					@Override
+					public Integer apply(int value) {
+						return value;
+					}
+				}).collect(Collectors.toSet());
 
 		for (int i = 0; i < 1024; i++) {
 			int chunkPos = locations2.get(i) >>> 8;
@@ -110,8 +117,7 @@ public class RegionFile {
 	}
 
 	/**
-	 * This method will take all the unused data out of this file by overwriting it
-	 * with zeroes. This is completely useless except for testing.
+	 * This method will take all the unused data out of this file by overwriting it with zeroes. This is completely useless except for testing.
 	 */
 	public void clearUnusedData() {
 		// maxPos is used to remove trailing unused data at the end of the file. We
