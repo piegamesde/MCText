@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <projectDescription>
 	<name>MCText</name>
-	<comment>MCText</comment>
+	<comment>Convert Minecraft worlds (nbt and Region/Anvil files) to text and back</comment>
 	<projects/>
 	<natures>
 		<nature>org.eclipse.jdt.core.javanature</nature>

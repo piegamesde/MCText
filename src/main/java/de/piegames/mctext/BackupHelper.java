@@ -1,5 +1,7 @@
 package de.piegames.mctext;
 
+import java.io.BufferedInputStream;
+import java.io.BufferedOutputStream;
 import java.io.IOException;
 import java.io.Writer;
 import java.nio.file.FileAlreadyExistsException;
@@ -80,38 +82,44 @@ public class BackupHelper {
 	public void backupNBT(Path source, Path destination) throws IOException {
 		log.debug("Backing up " + source + " as nbt file");
 		if (Files.exists(destination) && !overwriteExisting)
-			throw new FileAlreadyExistsException(destination.toString(), null, "Run with --overwrite-existing or --delete");
+			throw new FileAlreadyExistsException(destination.toString(), null, "Run with --overwrite-existing or --delete-destination");
 		if (dryRun)
 			return;
 		if (decompress)
-			try (NBTInputStream s = new NBTInputStream(Files.newInputStream(source), nbtCompression);
-					NBTOutputStream t = new NBTOutputStream(Files.newOutputStream(destination), NBTInputStream.NO_COMPRESSION)) {
+			try (NBTInputStream s = new NBTInputStream(new BufferedInputStream(Files.newInputStream(source)), nbtCompression);
+					NBTOutputStream t = new NBTOutputStream(new BufferedOutputStream(Files.newOutputStream(destination)), NBTInputStream.NO_COMPRESSION)) {
 				t.writeTag(s.readTag());
+				t.flush();
 			}
 		else
-			try (NBTInputStream s = new NBTInputStream(Files.newInputStream(source), nbtCompression);
+			try (NBTInputStream s = new NBTInputStream(new BufferedInputStream(Files.newInputStream(source)), nbtCompression);
 					Writer writer = Files.newBufferedWriter(destination)) {
 				writer.write(converter.gson.toJson(s.readTag()));
+				writer.flush();
 			}
 	}
 
 	public void backupAnvil(Path source, Path destination) throws IOException {
 		log.debug("Backing up " + source + " as anvil file");
 		if (Files.exists(destination) && !overwriteExisting)
-			throw new FileAlreadyExistsException(destination.toString(), null, "Run with --overwrite-existing or --delete");
+			throw new FileAlreadyExistsException(destination.toString(), null, "Run with --overwrite-existing or --delete-destination");
 		if (dryRun)
 			return;
 		if (decompress)
-			try (NBTOutputStream t = new NBTOutputStream(Files.newOutputStream(destination), NBTInputStream.NO_COMPRESSION)) {
+			try (NBTOutputStream t = new NBTOutputStream(new BufferedOutputStream(Files.newOutputStream(destination)), NBTInputStream.NO_COMPRESSION)) {
 				t.writeTag(converter.writeNBT(new RegionFile(source)));
+				t.flush();
 			}
 		else
 			try (Writer writer = Files.newBufferedWriter(destination)) {
 				writer.write(converter.gson.toJson(new RegionFile(source)));
+				writer.flush();
 			}
 	}
 
 	public void backupWorld(Path source, Path destination) throws IOException {
+		log.info("Backing up world " + source + " to " + destination);
+		log.debug("Options:" + optionString());
 		for (Path file : walkTree(source, destination))
 			try {
 				backupFile(file, destination.resolve(source.relativize(file)));
@@ -142,28 +150,30 @@ public class BackupHelper {
 	public void restoreNBT(Path source, Path destination) throws IOException {
 		log.debug("Restoring " + source + " as nbt file");
 		if (Files.exists(destination) && !overwriteExisting)
-			throw new FileAlreadyExistsException(destination.toString(), null, "Run with --overwrite-existing or --delete");
+			throw new FileAlreadyExistsException(destination.toString(), null, "Run with --overwrite-existing or --delete-destination");
 		if (dryRun)
 			return;
 		if (decompress)
-			try (NBTOutputStream t = new NBTOutputStream(Files.newOutputStream(destination), nbtCompression);
-					NBTInputStream s = new NBTInputStream(Files.newInputStream(source), NBTInputStream.NO_COMPRESSION)) {
+			try (NBTOutputStream t = new NBTOutputStream(new BufferedOutputStream(Files.newOutputStream(destination)), nbtCompression);
+					NBTInputStream s = new NBTInputStream(new BufferedInputStream(Files.newInputStream(source)), NBTInputStream.NO_COMPRESSION)) {
 				t.writeTag(s.readTag());
+				t.flush();
 			}
 		else
-			try (NBTOutputStream s = new NBTOutputStream(Files.newOutputStream(destination), nbtCompression)) {
+			try (NBTOutputStream s = new NBTOutputStream(new BufferedOutputStream(Files.newOutputStream(destination)), nbtCompression)) {
 				s.writeTag(converter.gson.fromJson(new String(Files.readAllBytes(source)), CompoundTag.class));
+				s.flush();
 			}
 	}
 
 	public void restoreAnvil(Path source, Path destination) throws IOException {
 		log.debug("Backing up " + source + " as anvil file");
 		if (Files.exists(destination) && !overwriteExisting)
-			throw new FileAlreadyExistsException(destination.toString(), null, "Run with --overwrite-existing or --delete");
+			throw new FileAlreadyExistsException(destination.toString(), null, "Run with --overwrite-existing or --delete-destination");
 		if (dryRun)
 			return;
 		if (decompress)
-			try (NBTInputStream s = new NBTInputStream(Files.newInputStream(source), NBTInputStream.NO_COMPRESSION)) {
+			try (NBTInputStream s = new NBTInputStream(new BufferedInputStream(Files.newInputStream(source)), NBTInputStream.NO_COMPRESSION)) {
 				converter.readNBT((CompoundTag) s.readTag()).write(destination);
 			}
 		else
@@ -171,6 +181,8 @@ public class BackupHelper {
 	}
 
 	public void restoreWorld(Path source, Path destination) throws IOException {
+		log.info("Restoring world " + source + " to " + destination);
+		log.debug("Options:" + optionString());
 		for (Path file : walkTree(source, destination))
 			try {
 				restoreFile(file, destination.resolve(source.relativize(file)));
@@ -202,13 +214,14 @@ public class BackupHelper {
 			public FileVisitResult visitFile(Path localSource, BasicFileAttributes attrs) throws IOException {
 				Path localDestination = destination.resolve(source.relativize(localSource));
 				if (Files.exists(localDestination) && !overwriteExisting) {
-					IOException e = new FileAlreadyExistsException(localDestination.toString(), null, "Run with --overwrite-existing or --delete");
+					IOException e = new FileAlreadyExistsException(localDestination.toString(), null, "Run with --overwrite-existing or --delete-destination");
 					if (failFast) {
 						throw e;
 					} else {
 						log.error("Could not back up", e);
 					}
-				} else if (checkTimestamps && Files.getLastModifiedTime(localSource).compareTo(Files.getLastModifiedTime(localDestination)) < 0)
+				} else if (Files.exists(localDestination) && checkTimestamps &&
+						Files.getLastModifiedTime(localSource).compareTo(Files.getLastModifiedTime(localDestination)) < 0)
 					log.debug("Skipping " + localSource + " based on file time");
 				else {
 					files.add(localSource);
@@ -228,5 +241,28 @@ public class BackupHelper {
 			}
 		});
 		return files;
+	}
+
+	protected String optionString() {
+		StringBuilder b = new StringBuilder();
+		if (converter.keepUnusedData)
+			b.append("--keep-unused");
+		if (converter.prettyPrinting)
+			b.append("--pretty");
+		if (dryRun)
+			b.append(" --dry-run");
+		if (nbtCompression != 1)
+			b.append(" --nbt-compression=" + nbtCompression);
+		if (decompress)
+			b.append(" --decompress");
+		if (overwriteExisting)
+			b.append(" --force");
+		if (failFast)
+			b.append(" --fail-fast");
+		if (delete)
+			b.append(" --delete-destination");
+		if (checkTimestamps)
+			b.append(" --lazy");
+		return b.toString();
 	}
 }

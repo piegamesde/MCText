@@ -73,6 +73,12 @@ public class Standalone implements Runnable {
 						+ " destination last got written.")
 		public boolean	delete;
 
+		@Option(names = { "--lazy", "-l" },
+				description = "Skip files that have a newer timestamp than the original, assuming that the original hasn't changed since then. Use in "
+						+ "combination with --force to speed up repeated conversions to the same destination over time. The result may not be correct if "
+						+ "files in the input data got deleted or renamed, run with --delete instead in those cases.")
+		public boolean	lazy;
+
 		@Parameters(index = "0",
 				paramLabel = "SOURCE",
 				description = "The location of the file or folder containing the original data when backing up, and"
@@ -103,7 +109,8 @@ public class Standalone implements Runnable {
 		public BackupHelper call() throws IOException {
 			if (verbose)
 				Configurator.setRootLevel(Level.DEBUG);
-			BackupHelper backup = new BackupHelper(prettyPrinting, keepUnusedData, dryRun, nbtCompression, decompress, overwriteExisting, false, false, false);
+			BackupHelper backup = new BackupHelper(prettyPrinting, keepUnusedData, dryRun, nbtCompression, decompress, overwriteExisting, failFast, delete,
+					lazy);
 			backup.backupFile(source, destination);
 			return backup;
 		}
@@ -116,7 +123,8 @@ public class Standalone implements Runnable {
 		public BackupHelper call() throws IOException {
 			if (verbose)
 				Configurator.setRootLevel(Level.DEBUG);
-			BackupHelper backup = new BackupHelper(prettyPrinting, keepUnusedData, dryRun, nbtCompression, decompress, overwriteExisting, false, false, false);
+			BackupHelper backup = new BackupHelper(prettyPrinting, keepUnusedData, dryRun, nbtCompression, decompress, overwriteExisting, failFast, delete,
+					lazy);
 			backup.backupWorld(source, destination);
 			return backup;
 		}
@@ -129,7 +137,7 @@ public class Standalone implements Runnable {
 		public BackupHelper call() throws IOException {
 			if (verbose)
 				Configurator.setRootLevel(Level.DEBUG);
-			BackupHelper backup = new BackupHelper(false, keepUnusedData, dryRun, nbtCompression, decompress, overwriteExisting, false, false, false);
+			BackupHelper backup = new BackupHelper(false, keepUnusedData, dryRun, nbtCompression, decompress, overwriteExisting, failFast, delete, lazy);
 			backup.restoreFile(source, destination);
 			return backup;
 		}
@@ -142,7 +150,7 @@ public class Standalone implements Runnable {
 		public BackupHelper call() throws IOException {
 			if (verbose)
 				Configurator.setRootLevel(Level.DEBUG);
-			BackupHelper backup = new BackupHelper(false, keepUnusedData, dryRun, nbtCompression, decompress, overwriteExisting, false, false, false);
+			BackupHelper backup = new BackupHelper(false, keepUnusedData, dryRun, nbtCompression, decompress, overwriteExisting, failFast, delete, lazy);
 			backup.restoreWorld(source, destination);
 			return backup;
 		}

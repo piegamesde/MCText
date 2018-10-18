@@ -97,12 +97,12 @@ public class Converter {
 				CompoundTag chunk = (CompoundTag) entry.getValue();
 				CompoundMap chunkMap = chunk.getValue();
 
-				int i = (int) chunkMap.get("index").getValue();
-				int timestamp = (int) chunkMap.get("timestamp").getValue();
-				byte compression = (byte) chunkMap.get("compression").getValue();
+				int i = ((IntTag) chunkMap.get("index")).getValue();
+				int timestamp = ((IntTag) chunkMap.get("timestamp")).getValue();
+				byte compression = ((ByteTag) chunkMap.get("compression")).getValue();
 
 				ByteArrayOutputStream baos = new ByteArrayOutputStream();
-				NBTOutputStream s = new NBTOutputStream(new BufferedOutputStream(baos = new ByteArrayOutputStream()), compression);
+				NBTOutputStream s = new NBTOutputStream(new BufferedOutputStream(baos), compression);
 				s.writeTag(new CompoundTag("", ((CompoundTag) chunkMap.get("chunk")).getValue()));
 				s.flush();
 				s.close();
@@ -179,25 +179,25 @@ public class Converter {
 
 		switch (nbt.getType()) {
 		case TAG_BYTE:
-			out.value((byte) nbt.getValue());
+			out.value(((ByteTag) nbt).getValue());
 			break;
 		case TAG_DOUBLE:
-			out.value((double) nbt.getValue());
+			out.value(((DoubleTag) nbt).getValue());
 			break;
 		case TAG_FLOAT:
-			out.value((float) nbt.getValue());
+			out.value(((FloatTag) nbt).getValue());
 			break;
 		case TAG_INT:
-			out.value((int) nbt.getValue());
+			out.value(((IntTag) nbt).getValue());
 			break;
 		case TAG_LONG:
-			out.value((long) nbt.getValue());
+			out.value(((LongTag) nbt).getValue());
 			break;
 		case TAG_SHORT:
-			out.value((short) nbt.getValue());
+			out.value(((ShortTag) nbt).getValue());
 			break;
 		case TAG_STRING:
-			out.value((String) nbt.getValue());
+			out.value(((StringTag) nbt).getValue());
 			break;
 		case TAG_BYTE_ARRAY:
 			out.value(Base64.getEncoder().encodeToString((byte[]) nbt.getValue()));
@@ -314,13 +314,13 @@ public class Converter {
 			return compound;
 		}
 		case TAG_LIST: {
-			List<Tag> tags = new LinkedList<Tag>();
+			List<Tag<?>> tags = new LinkedList<>();
 			in.beginArray();
 			TagType listType = decode(in.nextString());
 			while (in.peek() != JsonToken.END_ARRAY)
 				tags.add(read(in, "", listType));
 			in.endArray();
-			return new ListTag<Tag>(name, (Class<Tag>) listType.getTagClass(), tags);
+			return new ListTag<Tag<?>>(name, (Class<Tag<?>>) listType.getTagClass(), tags);
 		}
 		case TAG_END:
 			return new EndTag();
