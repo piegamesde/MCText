@@ -24,8 +24,18 @@
 			<id>jitpack.io</id>
 			<url>https://jitpack.io</url>
 		</repository>
+		<repository>
+			<id>aroma1997.org</id>
+			<url>https://files.aroma1997.org/maven/</url>
+		</repository>
 	</repositories>
 	<dependencies>
+		<dependency>
+			<groupId>aroma1997.backup</groupId>
+			<artifactId>AromaBackup-1.12.2</artifactId>
+			<version>3.0.0.0.b112</version>
+		</dependency>
+
 		<!-- https://mvnrepository.com/artifact/org.apache.commons/commons-io -->
 		<dependency>
 			<groupId>org.apache.commons</groupId>
@@ -52,7 +62,7 @@
 		<dependency>
 			<groupId>info.picocli</groupId>
 			<artifactId>picocli</artifactId>
-			<version>3.1.0</version>
+			<version>3.3.0</version>
 		</dependency>
 		<!-- https://mvnrepository.com/artifact/org.eclipse.jgit/org.eclipse.jgit -->
 		<dependency>
@@ -62,25 +72,34 @@
 		</dependency>
 
 		<dependency>
+			<groupId>commons-logging</groupId>
+			<artifactId>commons-logging</artifactId>
+			<version>1.2</version>
+		</dependency>
+		<dependency>
 			<groupId>org.apache.logging.log4j</groupId>
 			<artifactId>log4j-core</artifactId>
 			<version>2.10.0</version>
 		</dependency>
-
-		<!-- https://mvnrepository.com/artifact/org.junit.jupiter/junit-jupiter-engine -->
+		<dependency>
+			<groupId>org.apache.logging.log4j</groupId>
+			<artifactId>log4j-jcl</artifactId>
+			<version>2.10.0</version>
+		</dependency>
+	
+		<!-- https://mvnrepository.com/artifact/org.junit.jupiter/junit-jupiter-engine >
 		<dependency>
 			<groupId>org.junit.jupiter</groupId>
 			<artifactId>junit-jupiter-engine</artifactId>
-			<version>5.2.0</version>
+			<version>5.3.1</version>
 			<scope>test</scope>
 		</dependency>
-		<!-- https://mvnrepository.com/artifact/org.junit.jupiter/junit-jupiter-api -->
+		< https://mvnrepository.com/artifact/org.junit.jupiter/junit-jupiter-api >
 		<dependency>
 			<groupId>org.junit.jupiter</groupId>
 			<artifactId>junit-jupiter-api</artifactId>
-			<version>5.2.0</version>
-			<!-- scope>test</scope-->
-		</dependency>
-
+			<version>5.3.1</version>
+			<scope>test</scope>
+		</dependency-->
 	</dependencies>
 </project>
